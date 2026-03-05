@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>議事録アシスト＆録音ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        qb: {
+                            blue: '#003B8F', /* QBブルー */
+                            red: '#E60012',  /* QBレッド */
+                            light: '#F4F7FC',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            /* ユニバーサルデザインを意識した視認性の高いフォント指定 */
+            font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', Meiryo, sans-serif;
+            background-color: #e5e7eb;
+            color: #1f2937;
+        }
+        .pulse-recording {
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(230, 0, 18, 0.5); }
+            70% { box-shadow: 0 0 0 15px rgba(230, 0, 18, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(230, 0, 18, 0); }
+        }
+        /* 視認性を高めるためのフォーカススタイル */
+        button:focus, a:focus {
+            outline: 3px solid #003B8F;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200">
+        
+        <!-- ヘッダー -->
+        <div class="bg-qb-blue p-6 text-white text-center">
+            <div class="flex justify-center mb-3">
+                <i data-lucide="mic" class="w-12 h-12"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-wide">議事録アシスト＆録音</h1>
+            <p class="text-blue-100 text-sm mt-2 font-medium">マイクで会議を録音し、AIで議事録を自動生成します</p>
+        </div>
+
+        <div class="p-6 space-y-6">
+            
+            <!-- STEP 1: 録音セクション -->
+            <section class="bg-gray-50 rounded-lg p-5 border-2 border-gray-200">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-300 pb-2">
+                    <span class="bg-gray-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
+                    会議を録音する
+                </h2>
+                
+                <div class="text-center">
+                    <div class="text-4xl font-mono font-bold text-gray-900 mb-4" id="timerDisplay" aria-live="polite">00:00</div>
+                    
+                    <!-- 波形表示キャンバス -->
+                    <canvas id="visualizer" class="w-full h-20 mb-5 rounded bg-white border border-gray-300 shadow-inner" aria-label="音声波形"></canvas>
+                    
+                    <div class="flex flex-col gap-3">
+                        <button id="startBtn" class="bg-qb-red hover:bg-red-700 text-white text-lg font-bold py-3 px-6 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="circle" class="w-5 h-5 fill-current"></i> 録音を開始する
+                        </button>
+                        <button id="stopBtn" class="bg-gray-700 hover:bg-gray-800 text-white text-lg font-bold py-3 px-6 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2 hidden">
+                            <i data-lucide="square" class="w-5 h-5 fill-current"></i> 録音を停止する
+                        </button>
+                    </div>
+
+                    <!-- 録音完了後のダウンロード領域 -->
+                    <div id="downloadArea" class="hidden mt-5 pt-5 border-t border-gray-300">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-3">
+                            <p class="text-green-800 font-bold flex items-center justify-center gap-2">
+                                <i data-lucide="check-circle" class="w-5 h-5"></i> 録音が完了しました！
+                            </p>
+                        </div>
+                        <button id="saveBtn" class="w-full bg-white border-2 border-qb-blue hover:bg-blue-50 text-qb-blue text-lg font-bold py-3 px-6 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="save" class="w-5 h-5"></i> 名前を付けて音声を保存
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 2: AI連携セクション -->
+            <section class="bg-qb-light rounded-lg p-5 border-2 border-blue-200">
+                <h2 class="text-lg font-bold text-qb-blue mb-4 flex items-center gap-2 border-b border-blue-300 pb-2">
+                    <span class="bg-qb-blue text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
+                    AIで議事録を作成する
+                </h2>
+                
+                <div class="bg-white p-4 rounded border border-blue-100 mb-4">
+                    <h3 class="font-bold text-gray-800 mb-2">NotebookLMでの作成手順</h3>
+                    <ol class="list-decimal list-inside text-gray-700 space-y-2 font-medium">
+                        <li>下のボタンを押して指示文をコピーし、AIを開きます。</li>
+                        <li>開いた画面の「新しいソース」から、<strong>先ほど保存した音声ファイル</strong>をアップロードします。</li>
+                        <li>チャット入力欄に、<strong>コピーした指示文を貼り付けて送信</strong>してください。</li>
+                    </ol>
+                </div>
+                
+                <button id="actionBtn" class="w-full bg-qb-blue hover:bg-blue-800 text-white text-lg font-bold py-4 px-6 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="external-link" class="w-5 h-5"></i> 指示文をコピーしてAIを開く
+                </button>
+                
+                <div id="successMsg" class="hidden mt-3 text-qb-blue font-bold text-center bg-blue-100 p-2 rounded" role="alert">
+                    コピーしました！開いた画面に「貼り付け」してください。
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // 録音関連の変数
+        let mediaRecorder;
+        let audioChunks = [];
+        let currentAudioBlob = null;
+        let startTime;
+        let timerInterval;
+        let audioContext;
+        let analyser;
+        let dataArray;
+        let animationId;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const downloadArea = document.getElementById('downloadArea');
+        const saveBtn = document.getElementById('saveBtn');
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+
+        // 初期状態で平坦な線を引く関数
+        function drawFlatLine() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            canvasCtx.fillStyle = '#ffffff';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            canvasCtx.lineWidth = 3;
+            canvasCtx.strokeStyle = '#d1d5db';
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(0, canvas.height / 2);
+            canvasCtx.lineTo(canvas.width, canvas.height / 2);
+            canvasCtx.stroke();
+        }
+        
+        window.addEventListener('load', drawFlatLine);
+        window.addEventListener('resize', drawFlatLine);
+
+        // タイマー更新
+        function updateTimer() {
+            const now = Date.now();
+            const diff = new Date(now - startTime);
+            const minutes = diff.getUTCMinutes().toString().padStart(2, '0');
+            const seconds = diff.getUTCSeconds().toString().padStart(2, '0');
+            timerDisplay.textContent = `${minutes}:${seconds}`;
+        }
+
+        // 録音開始
+        startBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                currentAudioBlob = null;
+
+                // 波形ビジュアライザーの設定
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                source.connect(analyser);
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+
+                const drawWaveform = () => {
+                    animationId = requestAnimationFrame(drawWaveform);
+                    analyser.getByteTimeDomainData(dataArray);
+
+                    canvasCtx.fillStyle = '#ffffff';
+                    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    canvasCtx.lineWidth = 3;
+                    canvasCtx.strokeStyle = '#003B8F'; // QBブルーの波形
+                    canvasCtx.beginPath();
+
+                    const sliceWidth = canvas.width * 1.0 / bufferLength;
+                    let x = 0;
+
+                    for (let i = 0; i < bufferLength; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = v * canvas.height / 2;
+
+                        if (i === 0) {
+                            canvasCtx.moveTo(x, y);
+                        } else {
+                            canvasCtx.lineTo(x, y);
+                        }
+                        x += sliceWidth;
+                    }
+                    canvasCtx.lineTo(canvas.width, canvas.height / 2);
+                    canvasCtx.stroke();
+                };
+                drawWaveform();
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    // Blobを作成して保持しておく（保存時に使用）
+                    currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    downloadArea.classList.remove('hidden');
+                };
+
+                mediaRecorder.start();
+                
+                // UI変更
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                stopBtn.classList.add('pulse-recording');
+                downloadArea.classList.add('hidden');
+                
+                // タイマー開始
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+
+            } catch (err) {
+                alert('マイクへのアクセスが拒否されたか、マイクが見つかりません。\nブラウザの設定でマイクを許可してください。');
+                console.error(err);
+            }
+        });
+
+        // 録音停止
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+
+            if (animationId) cancelAnimationFrame(animationId);
+            if (audioContext) audioContext.close();
+            drawFlatLine();
+            
+            // UI変更
+            stopBtn.classList.remove('pulse-recording');
+            stopBtn.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            startBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-5 h-5"></i> 録音をやり直す`;
+            lucide.createIcons();
+            
+            clearInterval(timerInterval);
+        });
+
+        // 名前を付けて保存処理
+        saveBtn.addEventListener('click', async () => {
+            if (!currentAudioBlob) return;
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+            const defaultFilename = `会議録音_${dateStr}.mp3`;
+
+            // showSaveFilePicker API が使えるモダンブラウザの場合（任意の場所・名前で保存可能）
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: defaultFilename,
+                        types: [{
+                            description: 'MP3音声ファイル',
+                            accept: { 'audio/mp3': ['.mp3'] },
+                        }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(currentAudioBlob);
+                    await writable.close();
+                    
+                    // 保存成功時の視覚的フィードバック
+                    const originalHtml = saveBtn.innerHTML;
+                    saveBtn.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> 保存しました`;
+                    saveBtn.classList.replace('text-qb-blue', 'text-green-600');
+                    saveBtn.classList.replace('border-qb-blue', 'border-green-600');
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        saveBtn.innerHTML = originalHtml;
+                        saveBtn.classList.replace('text-green-600', 'text-qb-blue');
+                        saveBtn.classList.replace('border-green-600', 'border-qb-blue');
+                        lucide.createIcons();
+                    }, 3000);
+
+                } catch (err) {
+                    // ユーザーがキャンセルした場合はエラーにしない
+                    if (err.name !== 'AbortError') {
+                        console.error('保存エラー:', err);
+                        alert('保存処理に失敗しました。');
+                    }
+                }
+            } else {
+                // 非対応ブラウザのフォールバック処理（通常のダウンロード動作）
+                const audioUrl = URL.createObjectURL(currentAudioBlob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = audioUrl;
+                a.download = defaultFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(audioUrl);
+            }
+        });
+
+        // AI連携関連
+        const promptText = `アップロードした音声データから、Wordにそのまま貼り付けられる形式でビジネス議事録を作成してください。
+Markdownの記号（**や#など）は一切使わず、自然なテキストで出力してください。
+以下のフォーマットに厳密に従い、音声の内容から情報を抽出して空欄を埋めてください。
+
+【会議名】議事録
+
+1. 基本情報
+日時：
+場所・形式：
+参加者：
+欠席者：
+作成者：
+
+2. 目的・アジェンダ
+会議の目的：
+アジェンダ：
+
+3. 決定事項サマリー
+・（決定事項を1文で簡潔に記載）
+
+4. 議題ごとの詳細
+議題1：
+結論：
+経緯・意見：（誰がどのような意見を出したか、決定に至った理由や懸念点など）
+議題2：
+結論：
+経緯・意見：
+
+5. 保留・未決定事項
+・（今回決まらず、次回以降に持ち越しとなった事項を記載）
+
+6. Next Action（タスク）
+・[担当者名] ｜ [期限] ｜ [タスク内容]
+
+7. 次回予定
+日時：
+場所：
+議題：`;
+
+        const actionBtn = document.getElementById('actionBtn');
+        const msg = document.getElementById('successMsg');
+
+        actionBtn.addEventListener('click', () => {
+            const textarea = document.createElement('textarea');
+            textarea.value = promptText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                msg.classList.remove('hidden');
+                
+                // 少し待ってからNotebookLMを新しいタブで開く
+                setTimeout(() => {
+                    window.open('https://notebooklm.google.com/', '_blank');
+                    // 5秒後にメッセージを隠す
+                    setTimeout(() => msg.classList.add('hidden'), 5000);
+                }, 1000);
+            } catch (err) {
+                alert('コピーに失敗しました。');
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        });
+    </script>
+</body>
+</html>
