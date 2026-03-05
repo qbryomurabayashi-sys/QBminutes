@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>議事録アシスト＆録音ツール</title>
+    <!-- 未来的なフォントをインポート -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
@@ -11,11 +13,20 @@
             theme: {
                 extend: {
                     colors: {
-                        qb: {
-                            blue: '#003B8F', /* QBブルー */
-                            red: '#E60012',  /* QBレッド */
-                            light: '#F4F7FC',
+                        neon: {
+                            pink: '#ff2a85',
+                            blue: '#00f3ff',
+                            purple: '#bc13fe',
+                            green: '#39ff14'
+                        },
+                        dark: {
+                            bg: '#05000a',
+                            card: 'rgba(15, 5, 30, 0.65)'
                         }
+                    },
+                    fontFamily: {
+                        cyber: ['Orbitron', 'sans-serif'],
+                        sans: ['"Noto Sans JP"', 'sans-serif'],
                     }
                 }
             }
@@ -23,99 +34,120 @@
     </script>
     <style>
         body {
-            /* ユニバーサルデザインを意識した視認性の高いフォント指定 */
-            font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', Meiryo, sans-serif;
-            background-color: #e5e7eb;
-            color: #1f2937;
+            font-family: 'Noto Sans JP', sans-serif;
+            background: linear-gradient(-45deg, #0f0c29, #302b63, #0a0015, #240b36);
+            background-size: 400% 400%;
+            animation: cosmic-bg 15s ease infinite;
+            color: #e0e0e0;
+            overflow-x: hidden;
         }
+        
+        @keyframes cosmic-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .pulse-recording {
-            animation: pulse-red 2s infinite;
+            animation: pulse-neon 1.5s infinite;
         }
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(230, 0, 18, 0.5); }
-            70% { box-shadow: 0 0 0 15px rgba(230, 0, 18, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(230, 0, 18, 0); }
+        
+        @keyframes pulse-neon {
+            0% { box-shadow: 0 0 0 0 rgba(255, 42, 133, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 42, 133, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 42, 133, 0); }
         }
-        /* 視認性を高めるためのフォーカススタイル */
-        button:focus, a:focus {
-            outline: 3px solid #003B8F;
-            outline-offset: 2px;
+
+        /* ネオンテキストエフェクト */
+        .glow-text-blue {
+            text-shadow: 0 0 8px #00f3ff, 0 0 20px #00f3ff;
+        }
+        .glow-text-pink {
+            text-shadow: 0 0 8px #ff2a85, 0 0 20px #ff2a85;
+        }
+        
+        button {
+            transition: all 0.3s ease-in-out;
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-4 relative">
 
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200">
+    <!-- サイケデリックな背景オーブ（装飾） -->
+    <div class="absolute top-10 left-10 w-64 h-64 bg-neon-purple/20 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-10 right-10 w-80 h-80 bg-neon-blue/20 rounded-full blur-[120px] pointer-events-none"></div>
+
+    <div class="bg-dark-card backdrop-blur-xl rounded-2xl shadow-[0_0_30px_rgba(188,19,254,0.3)] w-full max-w-lg overflow-hidden border border-neon-purple/50 relative z-10">
         
         <!-- ヘッダー -->
-        <div class="bg-qb-blue p-6 text-white text-center">
-            <div class="flex justify-center mb-3">
+        <div class="p-6 text-center border-b border-neon-purple/30 bg-black/40">
+            <div class="flex justify-center mb-3 text-neon-blue drop-shadow-[0_0_10px_#00f3ff]">
                 <i data-lucide="mic" class="w-12 h-12"></i>
             </div>
-            <h1 class="text-2xl font-bold tracking-wide">議事録アシスト＆録音</h1>
-            <p class="text-blue-100 text-sm mt-2 font-medium">マイクで会議を録音し、AIで議事録を自動生成します</p>
+            <h1 class="text-2xl font-cyber font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink glow-text-blue">VOICE LOG.AI</h1>
+            <p class="text-neon-blue/80 text-xs mt-2 font-cyber tracking-widest">>> AUTO_TRANSCRIPT_PROTOCOL_INITIATED</p>
         </div>
 
         <div class="p-6 space-y-6">
             
             <!-- STEP 1: 録音セクション -->
-            <section class="bg-gray-50 rounded-lg p-5 border-2 border-gray-200">
-                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-300 pb-2">
-                    <span class="bg-gray-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
-                    会議を録音する
+            <section class="bg-black/40 rounded-xl p-5 border border-neon-blue/40 shadow-[inset_0_0_15px_rgba(0,243,255,0.1)]">
+                <h2 class="text-md font-cyber font-bold text-neon-blue mb-4 flex items-center gap-2 border-b border-neon-blue/30 pb-2">
+                    <span class="text-xs bg-neon-blue text-black px-2 py-1 rounded">SYS.01</span>
+                    AUDIO_RECORDING_MODULE
                 </h2>
                 
                 <div class="text-center">
-                    <div class="text-4xl font-mono font-bold text-gray-900 mb-4" id="timerDisplay" aria-live="polite">00:00</div>
+                    <div class="text-5xl font-cyber font-bold text-neon-pink glow-text-pink tracking-widest mb-4" id="timerDisplay" aria-live="polite">00:00</div>
                     
                     <!-- 波形表示キャンバス -->
-                    <canvas id="visualizer" class="w-full h-20 mb-5 rounded bg-white border border-gray-300 shadow-inner" aria-label="音声波形"></canvas>
+                    <canvas id="visualizer" class="w-full h-24 mb-5 rounded bg-black/80 border border-neon-pink/30 shadow-[0_0_10px_rgba(255,42,133,0.2)]" aria-label="音声波形"></canvas>
                     
                     <div class="flex flex-col gap-3">
-                        <button id="startBtn" class="bg-qb-red hover:bg-red-700 text-white text-lg font-bold py-3 px-6 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
-                            <i data-lucide="circle" class="w-5 h-5 fill-current"></i> 録音を開始する
+                        <button id="startBtn" class="bg-transparent border-2 border-neon-pink text-neon-pink hover:bg-neon-pink hover:text-black hover:shadow-[0_0_20px_#ff2a85] text-lg font-bold py-3 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
+                            <i data-lucide="power" class="w-5 h-5"></i> START_REC
                         </button>
-                        <button id="stopBtn" class="bg-gray-700 hover:bg-gray-800 text-white text-lg font-bold py-3 px-6 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2 hidden">
-                            <i data-lucide="square" class="w-5 h-5 fill-current"></i> 録音を停止する
+                        <button id="stopBtn" class="bg-neon-pink text-black border-2 border-neon-pink shadow-[0_0_20px_#ff2a85] text-lg font-bold py-3 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2 hidden">
+                            <i data-lucide="square" class="w-5 h-5 fill-current"></i> STOP_REC
                         </button>
                     </div>
 
                     <!-- 録音完了後のダウンロード領域 -->
-                    <div id="downloadArea" class="hidden mt-5 pt-5 border-t border-gray-300">
-                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-3">
-                            <p class="text-green-800 font-bold flex items-center justify-center gap-2">
-                                <i data-lucide="check-circle" class="w-5 h-5"></i> 録音が完了しました！
+                    <div id="downloadArea" class="hidden mt-5 pt-5 border-t border-neon-blue/30">
+                        <div class="bg-neon-green/10 border border-neon-green/50 rounded-lg p-3 mb-4">
+                            <p class="text-neon-green font-cyber tracking-widest text-sm flex items-center justify-center gap-2 drop-shadow-[0_0_5px_#39ff14]">
+                                <i data-lucide="check-circle" class="w-4 h-4"></i> AUDIO_DATA_SAVED
                             </p>
                         </div>
-                        <button id="saveBtn" class="w-full bg-white border-2 border-qb-blue hover:bg-blue-50 text-qb-blue text-lg font-bold py-3 px-6 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2">
-                            <i data-lucide="save" class="w-5 h-5"></i> 名前を付けて音声を保存
+                        <button id="saveBtn" class="w-full bg-transparent border-2 border-neon-green text-neon-green hover:bg-neon-green hover:text-black hover:shadow-[0_0_20px_#39ff14] text-sm font-bold py-3 px-6 rounded-lg font-cyber tracking-wider flex items-center justify-center gap-2">
+                            <i data-lucide="download" class="w-5 h-5"></i> DOWNLOAD_MP3
                         </button>
                     </div>
                 </div>
             </section>
 
             <!-- STEP 2: AI連携セクション -->
-            <section class="bg-qb-light rounded-lg p-5 border-2 border-blue-200">
-                <h2 class="text-lg font-bold text-qb-blue mb-4 flex items-center gap-2 border-b border-blue-300 pb-2">
-                    <span class="bg-qb-blue text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
-                    AIで議事録を作成する
+            <section class="bg-black/40 rounded-xl p-5 border border-neon-purple/40 shadow-[inset_0_0_15px_rgba(188,19,254,0.1)]">
+                <h2 class="text-md font-cyber font-bold text-neon-purple mb-4 flex items-center gap-2 border-b border-neon-purple/30 pb-2">
+                    <span class="text-xs bg-neon-purple text-black px-2 py-1 rounded">SYS.02</span>
+                    AI_INTEGRATION_SYNC
                 </h2>
                 
-                <div class="bg-white p-4 rounded border border-blue-100 mb-4">
-                    <h3 class="font-bold text-gray-800 mb-2">NotebookLMでの作成手順</h3>
-                    <ol class="list-decimal list-inside text-gray-700 space-y-2 font-medium">
-                        <li>下のボタンを押して指示文をコピーし、AIを開きます。</li>
-                        <li>開いた画面の「新しいソース」から、<strong>先ほど保存した音声ファイル</strong>をアップロードします。</li>
-                        <li>チャット入力欄に、<strong>コピーした指示文を貼り付けて送信</strong>してください。</li>
+                <div class="bg-black/60 p-4 rounded border border-neon-purple/30 mb-5 text-sm">
+                    <h3 class="font-cyber font-bold text-neon-blue mb-2 tracking-wider drop-shadow-[0_0_3px_#00f3ff]">> NotebookLM_PROTOCOL</h3>
+                    <ol class="list-decimal list-inside text-gray-300 space-y-2 opacity-90">
+                        <li>下のボタンで指示文をクリップボードにコピーし、AIを展開。</li>
+                        <li>「新しいソース」へ<strong>抽出した音声データ</strong>をアップロード。</li>
+                        <li>ターミナル（チャット欄）に<strong>指示文をペーストして実行</strong>。</li>
                     </ol>
                 </div>
                 
-                <button id="actionBtn" class="w-full bg-qb-blue hover:bg-blue-800 text-white text-lg font-bold py-4 px-6 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
-                    <i data-lucide="external-link" class="w-5 h-5"></i> 指示文をコピーしてAIを開く
+                <button id="actionBtn" class="w-full bg-transparent border-2 border-neon-blue text-neon-blue hover:bg-neon-blue hover:text-black hover:shadow-[0_0_20px_#00f3ff] font-bold py-4 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
+                    <i data-lucide="cpu" class="w-5 h-5"></i> COPY_PROMPT & LAUNCH_AI
                 </button>
                 
-                <div id="successMsg" class="hidden mt-3 text-qb-blue font-bold text-center bg-blue-100 p-2 rounded" role="alert">
-                    コピーしました！開いた画面に「貼り付け」してください。
+                <div id="successMsg" class="hidden mt-4 text-black font-cyber font-bold text-center bg-neon-blue p-2 rounded shadow-[0_0_15px_#00f3ff]" role="alert">
+                    > DATA_COPIED. AWAITING_PASTE_COMMAND.
                 </div>
             </section>
         </div>
@@ -143,30 +175,43 @@
         const canvas = document.getElementById('visualizer');
         const canvasCtx = canvas.getContext('2d');
 
-        // 初期状態で平坦な線を引く関数
+        // サイバーパンク風のフラットライン（待機状態）
         function drawFlatLine() {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
-            canvasCtx.fillStyle = '#ffffff';
+            canvasCtx.fillStyle = '#05000a';
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            canvasCtx.lineWidth = 3;
-            canvasCtx.strokeStyle = '#d1d5db';
+            
+            // サイバーグリッド風の背景線
+            canvasCtx.strokeStyle = 'rgba(0, 243, 255, 0.1)';
+            canvasCtx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=20) {
+                canvasCtx.beginPath(); canvasCtx.moveTo(i, 0); canvasCtx.lineTo(i, canvas.height); canvasCtx.stroke();
+            }
+            
+            canvasCtx.lineWidth = 2;
+            canvasCtx.strokeStyle = '#00f3ff';
+            canvasCtx.shadowBlur = 10;
+            canvasCtx.shadowColor = '#00f3ff';
             canvasCtx.beginPath();
             canvasCtx.moveTo(0, canvas.height / 2);
             canvasCtx.lineTo(canvas.width, canvas.height / 2);
             canvasCtx.stroke();
+            canvasCtx.shadowBlur = 0; // リセット
         }
         
         window.addEventListener('load', drawFlatLine);
         window.addEventListener('resize', drawFlatLine);
 
-        // タイマー更新
+        // タイマー更新 (デジタルミリ秒っぽく見せるが実際は秒)
         function updateTimer() {
             const now = Date.now();
             const diff = new Date(now - startTime);
             const minutes = diff.getUTCMinutes().toString().padStart(2, '0');
             const seconds = diff.getUTCSeconds().toString().padStart(2, '0');
-            timerDisplay.textContent = `${minutes}:${seconds}`;
+            // サイバー感のためにコロンを点滅させる
+            const colon = now % 1000 < 500 ? ':' : ' ';
+            timerDisplay.textContent = `${minutes}${colon}${seconds}`;
         }
 
         // 録音開始
@@ -189,15 +234,24 @@
                 canvas.width = canvas.offsetWidth;
                 canvas.height = canvas.offsetHeight;
 
+                // サイケデリックな波形描画ループ
                 const drawWaveform = () => {
                     animationId = requestAnimationFrame(drawWaveform);
                     analyser.getByteTimeDomainData(dataArray);
 
-                    canvasCtx.fillStyle = '#ffffff';
+                    // 残像を残すために半透明の黒で塗りつぶす
+                    canvasCtx.fillStyle = 'rgba(5, 0, 10, 0.2)';
                     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
                     canvasCtx.lineWidth = 3;
-                    canvasCtx.strokeStyle = '#003B8F'; // QBブルーの波形
+                    
+                    // 時間経過で色が変わるサイケデリックな色相変化
+                    const hue = (Date.now() / 15) % 360;
+                    const neonColor = `hsl(${hue}, 100%, 60%)`;
+                    
+                    canvasCtx.strokeStyle = neonColor;
+                    canvasCtx.shadowBlur = 15;
+                    canvasCtx.shadowColor = neonColor;
                     canvasCtx.beginPath();
 
                     const sliceWidth = canvas.width * 1.0 / bufferLength;
@@ -207,15 +261,19 @@
                         const v = dataArray[i] / 128.0;
                         const y = v * canvas.height / 2;
 
+                        // 波の振幅を少し大げさにする
+                        const amplifiedY = canvas.height/2 + (y - canvas.height/2) * 1.5;
+
                         if (i === 0) {
-                            canvasCtx.moveTo(x, y);
+                            canvasCtx.moveTo(x, amplifiedY);
                         } else {
-                            canvasCtx.lineTo(x, y);
+                            canvasCtx.lineTo(x, amplifiedY);
                         }
                         x += sliceWidth;
                     }
                     canvasCtx.lineTo(canvas.width, canvas.height / 2);
                     canvasCtx.stroke();
+                    canvasCtx.shadowBlur = 0; // リセット
                 };
                 drawWaveform();
 
@@ -224,7 +282,6 @@
                 };
 
                 mediaRecorder.onstop = () => {
-                    // Blobを作成して保持しておく（保存時に使用）
                     currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
                     downloadArea.classList.remove('hidden');
                 };
@@ -239,7 +296,9 @@
                 
                 // タイマー開始
                 startTime = Date.now();
-                timerInterval = setInterval(updateTimer, 1000);
+                timerDisplay.classList.replace('text-neon-pink', 'text-neon-blue');
+                timerDisplay.classList.replace('glow-text-pink', 'glow-text-blue');
+                timerInterval = setInterval(updateTimer, 50); // 点滅を滑らかにするため間隔を短く
 
             } catch (err) {
                 alert('マイクへのアクセスが拒否されたか、マイクが見つかりません。\nブラウザの設定でマイクを許可してください。');
@@ -262,10 +321,13 @@
             stopBtn.classList.remove('pulse-recording');
             stopBtn.classList.add('hidden');
             startBtn.classList.remove('hidden');
-            startBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-5 h-5"></i> 録音をやり直す`;
+            startBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-5 h-5"></i> REBOOT_REC`;
             lucide.createIcons();
             
             clearInterval(timerInterval);
+            timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
+            timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
+            timerDisplay.textContent = timerDisplay.textContent.replace(' ', ':'); // コロンを戻す
         });
 
         // 名前を付けて保存処理
@@ -274,15 +336,14 @@
 
             const now = new Date();
             const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-            const defaultFilename = `会議録音_${dateStr}.mp3`;
+            const defaultFilename = `LOG_${dateStr}.mp3`;
 
-            // showSaveFilePicker API が使えるモダンブラウザの場合（任意の場所・名前で保存可能）
             if (window.showSaveFilePicker) {
                 try {
                     const handle = await window.showSaveFilePicker({
                         suggestedName: defaultFilename,
                         types: [{
-                            description: 'MP3音声ファイル',
+                            description: 'MP3 AUDIO DATA',
                             accept: { 'audio/mp3': ['.mp3'] },
                         }],
                     });
@@ -290,28 +351,25 @@
                     await writable.write(currentAudioBlob);
                     await writable.close();
                     
-                    // 保存成功時の視覚的フィードバック
                     const originalHtml = saveBtn.innerHTML;
-                    saveBtn.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> 保存しました`;
-                    saveBtn.classList.replace('text-qb-blue', 'text-green-600');
-                    saveBtn.classList.replace('border-qb-blue', 'border-green-600');
+                    saveBtn.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> DATA_SECURED`;
+                    saveBtn.classList.add('bg-neon-green', 'text-black');
+                    saveBtn.classList.remove('bg-transparent', 'text-neon-green');
                     lucide.createIcons();
                     setTimeout(() => {
                         saveBtn.innerHTML = originalHtml;
-                        saveBtn.classList.replace('text-green-600', 'text-qb-blue');
-                        saveBtn.classList.replace('border-green-600', 'border-qb-blue');
+                        saveBtn.classList.remove('bg-neon-green', 'text-black');
+                        saveBtn.classList.add('bg-transparent', 'text-neon-green');
                         lucide.createIcons();
                     }, 3000);
 
                 } catch (err) {
-                    // ユーザーがキャンセルした場合はエラーにしない
                     if (err.name !== 'AbortError') {
-                        console.error('保存エラー:', err);
-                        alert('保存処理に失敗しました。');
+                        console.error('Save Error:', err);
+                        alert('システムエラー：ファイルの保存に失敗しました。');
                     }
                 }
             } else {
-                // 非対応ブラウザのフォールバック処理（通常のダウンロード動作）
                 const audioUrl = URL.createObjectURL(currentAudioBlob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
@@ -377,14 +435,12 @@ Markdownの記号（**や#など）は一切使わず、自然なテキストで
                 document.execCommand('copy');
                 msg.classList.remove('hidden');
                 
-                // 少し待ってからNotebookLMを新しいタブで開く
                 setTimeout(() => {
                     window.open('https://notebooklm.google.com/', '_blank');
-                    // 5秒後にメッセージを隠す
                     setTimeout(() => msg.classList.add('hidden'), 5000);
                 }, 1000);
             } catch (err) {
-                alert('コピーに失敗しました。');
+                alert('クリップボードへのアクセスが拒否されました。');
             } finally {
                 document.body.removeChild(textarea);
             }
