@@ -17,7 +17,8 @@
                             pink: '#ff2a85',
                             blue: '#00f3ff',
                             purple: '#bc13fe',
-                            green: '#39ff14'
+                            green: '#39ff14',
+                            yellow: '#fcee0a' /* リセットボタン用に追加 */
                         },
                         dark: {
                             bg: '#05000a',
@@ -65,6 +66,9 @@
         .glow-text-pink {
             text-shadow: 0 0 8px #ff2a85, 0 0 20px #ff2a85;
         }
+        .glow-text-yellow {
+            text-shadow: 0 0 8px #fcee0a, 0 0 20px #fcee0a;
+        }
         
         button {
             transition: all 0.3s ease-in-out;
@@ -107,9 +111,16 @@
                         <button id="startBtn" class="bg-transparent border-2 border-neon-pink text-neon-pink hover:bg-neon-pink hover:text-black hover:shadow-[0_0_20px_#ff2a85] text-lg font-bold py-3 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
                             <i data-lucide="power" class="w-5 h-5"></i> START_REC
                         </button>
-                        <button id="stopBtn" class="bg-neon-pink text-black border-2 border-neon-pink shadow-[0_0_20px_#ff2a85] text-lg font-bold py-3 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2 hidden">
-                            <i data-lucide="square" class="w-5 h-5 fill-current"></i> STOP_REC
-                        </button>
+                        
+                        <!-- 録音中のコントロール（ストップとリセット） -->
+                        <div id="recordingControls" class="hidden flex gap-3 w-full">
+                            <button id="stopBtn" class="flex-1 bg-neon-pink text-black border-2 border-neon-pink shadow-[0_0_20px_#ff2a85] text-md font-bold py-3 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
+                                <i data-lucide="square" class="w-5 h-5 fill-current"></i> STOP
+                            </button>
+                            <button id="resetBtn" class="flex-1 bg-transparent border-2 border-neon-yellow text-neon-yellow hover:bg-neon-yellow hover:text-black hover:shadow-[0_0_20px_#fcee0a] text-md font-bold py-3 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i> RESET
+                            </button>
+                        </div>
                     </div>
 
                     <!-- 録音完了後のダウンロード領域 -->
@@ -166,14 +177,54 @@
         let analyser;
         let dataArray;
         let animationId;
+        
+        let wakeLock = null;
+        let isResetting = false;
 
         const startBtn = document.getElementById('startBtn');
+        const recordingControls = document.getElementById('recordingControls');
         const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
         const timerDisplay = document.getElementById('timerDisplay');
         const downloadArea = document.getElementById('downloadArea');
         const saveBtn = document.getElementById('saveBtn');
         const canvas = document.getElementById('visualizer');
         const canvasCtx = canvas.getContext('2d');
+
+        // スリープ（画面ロック）防止 APIの実装
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock API: Active (Screen sleep prevented)');
+                }
+            } catch (err) {
+                // iframe等で制限されている場合のNotAllowedErrorはログ出力を抑制・軽減する
+                if (err.name === 'NotAllowedError') {
+                    console.warn('Wake Lock API: 実行環境の権限により無効化されています。');
+                } else {
+                    console.warn('WakeLock Warning:', err.message);
+                }
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                    console.log('Wake Lock API: Released');
+                }).catch(err => {
+                    console.warn('Wake Lock API release warning:', err.message);
+                });
+            }
+        }
+
+        // ページを切り替えて戻ってきたときにWake Lockを再取得する（録音中のみ）
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
 
         // サイバーパンク風のフラットライン（待機状態）
         function drawFlatLine() {
@@ -221,6 +272,10 @@
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
                 currentAudioBlob = null;
+                isResetting = false;
+
+                // スリープ防止機能をオン
+                await requestWakeLock();
 
                 // 波形ビジュアライザーの設定
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -282,6 +337,14 @@
                 };
 
                 mediaRecorder.onstop = () => {
+                    // リセット操作の場合はデータを保存せずに終了
+                    if (isResetting) {
+                        currentAudioBlob = null;
+                        audioChunks = [];
+                        return;
+                    }
+                    
+                    // 正常なストップ操作の場合はデータを保存
                     currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
                     downloadArea.classList.remove('hidden');
                 };
@@ -290,7 +353,7 @@
                 
                 // UI変更
                 startBtn.classList.add('hidden');
-                stopBtn.classList.remove('hidden');
+                recordingControls.classList.remove('hidden');
                 stopBtn.classList.add('pulse-recording');
                 downloadArea.classList.add('hidden');
                 
@@ -306,8 +369,9 @@
             }
         });
 
-        // 録音停止
+        // 録音停止（保存する）
         stopBtn.addEventListener('click', () => {
+            isResetting = false;
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
@@ -316,10 +380,11 @@
             if (animationId) cancelAnimationFrame(animationId);
             if (audioContext) audioContext.close();
             drawFlatLine();
+            releaseWakeLock(); // スリープ防止を解除
             
             // UI変更
+            recordingControls.classList.add('hidden');
             stopBtn.classList.remove('pulse-recording');
-            stopBtn.classList.add('hidden');
             startBtn.classList.remove('hidden');
             startBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-5 h-5"></i> REBOOT_REC`;
             lucide.createIcons();
@@ -328,6 +393,33 @@
             timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
             timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
             timerDisplay.textContent = timerDisplay.textContent.replace(' ', ':'); // コロンを戻す
+        });
+
+        // 録音リセット（データを破棄して最初から）
+        resetBtn.addEventListener('click', () => {
+            isResetting = true;
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+
+            if (animationId) cancelAnimationFrame(animationId);
+            if (audioContext) audioContext.close();
+            drawFlatLine();
+            releaseWakeLock(); // スリープ防止を解除
+            
+            // UIを初期状態に戻す
+            recordingControls.classList.add('hidden');
+            stopBtn.classList.remove('pulse-recording');
+            startBtn.classList.remove('hidden');
+            startBtn.innerHTML = `<i data-lucide="power" class="w-5 h-5"></i> START_REC`;
+            lucide.createIcons();
+            
+            clearInterval(timerInterval);
+            timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
+            timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
+            timerDisplay.textContent = '00:00';
+            downloadArea.classList.add('hidden');
         });
 
         // 名前を付けて保存処理
