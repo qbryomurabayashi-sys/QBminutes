@@ -18,7 +18,7 @@
                             blue: '#00f3ff',
                             purple: '#bc13fe',
                             green: '#39ff14',
-                            yellow: '#fcee0a' /* リセットボタン用に追加 */
+                            yellow: '#fcee0a'
                         },
                         dark: {
                             bg: '#05000a',
@@ -73,6 +73,19 @@
         button {
             transition: all 0.3s ease-in-out;
         }
+
+        /* 文字起こしエリアのスクロールバー装飾 */
+        #transcriptionContainer::-webkit-scrollbar {
+            width: 6px;
+        }
+        #transcriptionContainer::-webkit-scrollbar-track {
+            background: rgba(0, 243, 255, 0.1);
+            border-radius: 4px;
+        }
+        #transcriptionContainer::-webkit-scrollbar-thumb {
+            background: rgba(0, 243, 255, 0.5);
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 relative">
@@ -89,7 +102,7 @@
                 <i data-lucide="mic" class="w-12 h-12"></i>
             </div>
             <h1 class="text-2xl font-cyber font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink glow-text-blue">VOICE LOG.AI</h1>
-            <p class="text-neon-blue/80 text-xs mt-2 font-cyber tracking-widest">>> AUTO_TRANSCRIPT_PROTOCOL_INITIATED</p>
+            <p class="text-neon-blue/80 text-xs mt-2 font-cyber tracking-widest">>> 自動文字起こしプロトコル起動</p>
         </div>
 
         <div class="p-6 space-y-6">
@@ -97,28 +110,40 @@
             <!-- STEP 1: 録音セクション -->
             <section class="bg-black/40 rounded-xl p-5 border border-neon-blue/40 shadow-[inset_0_0_15px_rgba(0,243,255,0.1)]">
                 <h2 class="text-md font-cyber font-bold text-neon-blue mb-4 flex items-center gap-2 border-b border-neon-blue/30 pb-2">
-                    <span class="text-xs bg-neon-blue text-black px-2 py-1 rounded">SYS.01</span>
-                    AUDIO_RECORDING_MODULE
+                    <span class="text-xs bg-neon-blue text-black px-2 py-1 rounded">システム.01</span>
+                    音声録音＆解析モジュール
                 </h2>
                 
                 <div class="text-center">
                     <div class="text-5xl font-cyber font-bold text-neon-pink glow-text-pink tracking-widest mb-4" id="timerDisplay" aria-live="polite">00:00</div>
                     
                     <!-- 波形表示キャンバス -->
-                    <canvas id="visualizer" class="w-full h-24 mb-5 rounded bg-black/80 border border-neon-pink/30 shadow-[0_0_10px_rgba(255,42,133,0.2)]" aria-label="音声波形"></canvas>
+                    <canvas id="visualizer" class="w-full h-16 mb-4 rounded bg-black/80 border border-neon-pink/30 shadow-[0_0_10px_rgba(255,42,133,0.2)]" aria-label="音声波形"></canvas>
                     
+                    <!-- リアルタイム文字起こし表示エリア（拡大・強調） -->
+                    <div class="mb-5 relative text-left">
+                        <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none rounded-t-md"></div>
+                        <div id="transcriptionContainer" class="w-full h-48 overflow-y-auto bg-black/60 border border-neon-blue/30 rounded-md p-4 text-base text-gray-200 font-sans shadow-[inset_0_0_15px_rgba(0,243,255,0.05)] leading-relaxed">
+                            <span id="transcriptionDisplay" class="whitespace-pre-wrap"></span>
+                            <!-- 認識中の文字はピンク色で点滅 -->
+                            <span id="interimDisplay" class="text-neon-pink animate-pulse font-bold"></span>
+                            <div id="transcriptionPlaceholder" class="text-neon-blue text-center mt-16 font-cyber text-sm tracking-widest opacity-70 animate-pulse">> WAITING_FOR_VOICE_INPUT...<br><span class="text-xs text-gray-400 mt-2 block font-sans">（マイクに向かって話すと、ここにリアルタイムで文字起こしが表示されます）</span></div>
+                        </div>
+                        <div class="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none rounded-b-md"></div>
+                    </div>
+
                     <div class="flex flex-col gap-3">
                         <button id="startBtn" class="bg-transparent border-2 border-neon-pink text-neon-pink hover:bg-neon-pink hover:text-black hover:shadow-[0_0_20px_#ff2a85] text-lg font-bold py-3 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                            <i data-lucide="power" class="w-5 h-5"></i> START_REC
+                            <i data-lucide="power" class="w-5 h-5"></i> 録音開始
                         </button>
                         
                         <!-- 録音中のコントロール（ストップとリセット） -->
                         <div id="recordingControls" class="hidden flex gap-3 w-full">
                             <button id="stopBtn" class="flex-1 bg-neon-pink text-black border-2 border-neon-pink shadow-[0_0_20px_#ff2a85] text-md font-bold py-3 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                                <i data-lucide="square" class="w-5 h-5 fill-current"></i> STOP
+                                <i data-lucide="square" class="w-5 h-5 fill-current"></i> 停止
                             </button>
                             <button id="resetBtn" class="flex-1 bg-transparent border-2 border-neon-yellow text-neon-yellow hover:bg-neon-yellow hover:text-black hover:shadow-[0_0_20px_#fcee0a] text-md font-bold py-3 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                                <i data-lucide="trash-2" class="w-5 h-5"></i> RESET
+                                <i data-lucide="trash-2" class="w-5 h-5"></i> リセット
                             </button>
                         </div>
                     </div>
@@ -127,12 +152,24 @@
                     <div id="downloadArea" class="hidden mt-5 pt-5 border-t border-neon-blue/30">
                         <div class="bg-neon-green/10 border border-neon-green/50 rounded-lg p-3 mb-4">
                             <p class="text-neon-green font-cyber tracking-widest text-sm flex items-center justify-center gap-2 drop-shadow-[0_0_5px_#39ff14]">
-                                <i data-lucide="check-circle" class="w-4 h-4"></i> AUDIO_DATA_SAVED
+                                <i data-lucide="check-circle" class="w-4 h-4"></i> 音声＆テキストデータを保存しました
                             </p>
                         </div>
-                        <button id="saveBtn" class="w-full bg-transparent border-2 border-neon-green text-neon-green hover:bg-neon-green hover:text-black hover:shadow-[0_0_20px_#39ff14] text-sm font-bold py-3 px-6 rounded-lg font-cyber tracking-wider flex items-center justify-center gap-2">
-                            <i data-lucide="download" class="w-5 h-5"></i> DOWNLOAD_MP3
-                        </button>
+
+                        <!-- 追加: 文字起こし結果確認・編集エリア（録音完了後） -->
+                        <div id="finalTranscriptionArea" class="hidden mb-4 text-left">
+                            <label class="text-neon-blue text-xs font-cyber tracking-widest mb-2 block">> 抽出されたテキストデータ (編集可能)</label>
+                            <textarea id="finalTranscriptionInput" class="w-full h-32 bg-black/80 border border-neon-blue/50 rounded-md p-3 text-sm text-gray-300 font-sans shadow-[inset_0_0_15px_rgba(0,243,255,0.1)] focus:outline-none focus:border-neon-blue focus:shadow-[0_0_10px_rgba(0,243,255,0.5)] resize-y" placeholder="ここに文字起こし結果が表示されます。"></textarea>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button id="saveBtn" class="flex-1 bg-transparent border-2 border-neon-green text-neon-green hover:bg-neon-green hover:text-black hover:shadow-[0_0_20px_#39ff14] text-xs font-bold py-3 px-2 rounded-lg font-cyber tracking-wider flex items-center justify-center gap-1">
+                                <i data-lucide="music" class="w-4 h-4"></i> MP3保存
+                            </button>
+                            <button id="saveTextBtn" class="flex-1 bg-transparent border-2 border-neon-blue text-neon-blue hover:bg-neon-blue hover:text-black hover:shadow-[0_0_20px_#00f3ff] text-xs font-bold py-3 px-2 rounded-lg font-cyber tracking-wider flex items-center justify-center gap-1">
+                                <i data-lucide="file-text" class="w-4 h-4"></i> テキスト保存
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -140,25 +177,25 @@
             <!-- STEP 2: AI連携セクション -->
             <section class="bg-black/40 rounded-xl p-5 border border-neon-purple/40 shadow-[inset_0_0_15px_rgba(188,19,254,0.1)]">
                 <h2 class="text-md font-cyber font-bold text-neon-purple mb-4 flex items-center gap-2 border-b border-neon-purple/30 pb-2">
-                    <span class="text-xs bg-neon-purple text-black px-2 py-1 rounded">SYS.02</span>
-                    AI_INTEGRATION_SYNC
+                    <span class="text-xs bg-neon-purple text-black px-2 py-1 rounded">システム.02</span>
+                    AI連携同期
                 </h2>
                 
                 <div class="bg-black/60 p-4 rounded border border-neon-purple/30 mb-5 text-sm">
-                    <h3 class="font-cyber font-bold text-neon-blue mb-2 tracking-wider drop-shadow-[0_0_3px_#00f3ff]">> NotebookLM_PROTOCOL</h3>
+                    <h3 class="font-cyber font-bold text-neon-blue mb-2 tracking-wider drop-shadow-[0_0_3px_#00f3ff]">> NotebookLM プロトコル</h3>
                     <ol class="list-decimal list-inside text-gray-300 space-y-2 opacity-90">
                         <li>下のボタンで指示文をクリップボードにコピーし、AIを展開。</li>
-                        <li>「新しいソース」へ<strong>抽出した音声データ</strong>をアップロード。</li>
+                        <li>「新しいソース」へ<strong>保存した音声やテキストデータ</strong>をアップロード。</li>
                         <li>ターミナル（チャット欄）に<strong>指示文をペーストして実行</strong>。</li>
                     </ol>
                 </div>
                 
                 <button id="actionBtn" class="w-full bg-transparent border-2 border-neon-blue text-neon-blue hover:bg-neon-blue hover:text-black hover:shadow-[0_0_20px_#00f3ff] font-bold py-4 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                    <i data-lucide="cpu" class="w-5 h-5"></i> COPY_PROMPT & LAUNCH_AI
+                    <i data-lucide="cpu" class="w-5 h-5"></i> プロンプトをコピー ＆ AIを起動
                 </button>
                 
                 <div id="successMsg" class="hidden mt-4 text-black font-cyber font-bold text-center bg-neon-blue p-2 rounded shadow-[0_0_15px_#00f3ff]" role="alert">
-                    > DATA_COPIED. AWAITING_PASTE_COMMAND.
+                    > コピー完了。貼り付け待機中。
                 </div>
             </section>
         </div>
@@ -178,9 +215,16 @@
         let dataArray;
         let animationId;
         
+        // 状態管理
         let wakeLock = null;
-        let isResetting = false;
+        let isRecordingActive = false;
+        
+        // 文字起こし関連の変数
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let finalTranscript = '';
 
+        // DOM要素
         const startBtn = document.getElementById('startBtn');
         const recordingControls = document.getElementById('recordingControls');
         const stopBtn = document.getElementById('stopBtn');
@@ -188,22 +232,76 @@
         const timerDisplay = document.getElementById('timerDisplay');
         const downloadArea = document.getElementById('downloadArea');
         const saveBtn = document.getElementById('saveBtn');
+        const saveTextBtn = document.getElementById('saveTextBtn');
         const canvas = document.getElementById('visualizer');
         const canvasCtx = canvas.getContext('2d');
+        const transcriptionContainer = document.getElementById('transcriptionContainer');
+        const transcriptionDisplay = document.getElementById('transcriptionDisplay');
+        const interimDisplay = document.getElementById('interimDisplay');
+        const transcriptionPlaceholder = document.getElementById('transcriptionPlaceholder');
+        const finalTranscriptionArea = document.getElementById('finalTranscriptionArea');
+        const finalTranscriptionInput = document.getElementById('finalTranscriptionInput');
+
+        // 音声認識の初期化
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP';
+            recognition.continuous = true; // 連続して認識
+            recognition.interimResults = true; // 途中結果も取得
+            
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + '\n';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                transcriptionPlaceholder.style.display = 'none';
+                transcriptionDisplay.innerText = finalTranscript;
+                interimDisplay.innerText = interimTranscript;
+                
+                // 自動スクロール
+                transcriptionContainer.scrollTop = transcriptionContainer.scrollHeight;
+            };
+
+            // 認識が途切れた場合は自動再開（無音などで自動停止するため）
+            recognition.onend = () => {
+                if (isRecordingActive) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.warn('Recognition restart error', e);
+                    }
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.warn('Speech Recognition Error:', event.error);
+                // エラー後も録音中なら再開を試みる
+                if (event.error !== 'aborted' && isRecordingActive) {
+                    setTimeout(() => {
+                        try { recognition.start(); } catch(e){}
+                    }, 1000);
+                }
+            };
+        } else {
+            transcriptionPlaceholder.innerText = "> SYS_ERR: SPEECH_RECOGNITION_NOT_SUPPORTED_IN_THIS_BROWSER";
+            transcriptionPlaceholder.classList.replace('text-gray-500', 'text-red-500');
+        }
 
         // スリープ（画面ロック）防止 APIの実装
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    console.log('Wake Lock API: Active (Screen sleep prevented)');
                 }
             } catch (err) {
-                // iframe等で制限されている場合のNotAllowedErrorはログ出力を抑制・軽減する
                 if (err.name === 'NotAllowedError') {
                     console.warn('Wake Lock API: 実行環境の権限により無効化されています。');
-                } else {
-                    console.warn('WakeLock Warning:', err.message);
                 }
             }
         }
@@ -212,16 +310,12 @@
             if (wakeLock !== null) {
                 wakeLock.release().then(() => {
                     wakeLock = null;
-                    console.log('Wake Lock API: Released');
-                }).catch(err => {
-                    console.warn('Wake Lock API release warning:', err.message);
-                });
+                }).catch(e => {});
             }
         }
 
-        // ページを切り替えて戻ってきたときにWake Lockを再取得する（録音中のみ）
         document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') {
+            if (wakeLock !== null && document.visibilityState === 'visible' && isRecordingActive) {
                 await requestWakeLock();
             }
         });
@@ -233,7 +327,6 @@
             canvasCtx.fillStyle = '#05000a';
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // サイバーグリッド風の背景線
             canvasCtx.strokeStyle = 'rgba(0, 243, 255, 0.1)';
             canvasCtx.lineWidth = 1;
             for(let i=0; i<canvas.width; i+=20) {
@@ -248,21 +341,28 @@
             canvasCtx.moveTo(0, canvas.height / 2);
             canvasCtx.lineTo(canvas.width, canvas.height / 2);
             canvasCtx.stroke();
-            canvasCtx.shadowBlur = 0; // リセット
+            canvasCtx.shadowBlur = 0;
         }
         
         window.addEventListener('load', drawFlatLine);
         window.addEventListener('resize', drawFlatLine);
 
-        // タイマー更新 (デジタルミリ秒っぽく見せるが実際は秒)
         function updateTimer() {
             const now = Date.now();
-            const diff = new Date(now - startTime);
-            const minutes = diff.getUTCMinutes().toString().padStart(2, '0');
-            const seconds = diff.getUTCSeconds().toString().padStart(2, '0');
-            // サイバー感のためにコロンを点滅させる
-            const colon = now % 1000 < 500 ? ':' : ' ';
-            timerDisplay.textContent = `${minutes}${colon}${seconds}`;
+            const diff = now - startTime;
+            
+            const totalSeconds = Math.floor(diff / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+            const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+            
+            const colon = diff % 1000 < 500 ? ':' : ' ';
+            
+            if (hours > 0) {
+                timerDisplay.textContent = `${hours}${colon}${minutes}${colon}${seconds}`;
+            } else {
+                timerDisplay.textContent = `${minutes}${colon}${seconds}`;
+            }
         }
 
         // 録音開始
@@ -272,12 +372,24 @@
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
                 currentAudioBlob = null;
-                isResetting = false;
+                isRecordingActive = true;
 
-                // スリープ防止機能をオン
+                // スリープ防止
                 await requestWakeLock();
 
-                // 波形ビジュアライザーの設定
+                // 文字起こしの開始
+                if (recognition) {
+                    finalTranscript = '';
+                    transcriptionDisplay.innerText = '';
+                    interimDisplay.innerText = '';
+                    transcriptionPlaceholder.style.display = 'block';
+                    transcriptionPlaceholder.innerText = '> LISTENING...';
+                    try {
+                        recognition.start();
+                    } catch(e) { console.warn(e); }
+                }
+
+                // 波形ビジュアライザー
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const source = audioContext.createMediaStreamSource(stream);
                 analyser = audioContext.createAnalyser();
@@ -285,22 +397,17 @@
                 source.connect(analyser);
                 const bufferLength = analyser.frequencyBinCount;
                 dataArray = new Uint8Array(bufferLength);
-
                 canvas.width = canvas.offsetWidth;
                 canvas.height = canvas.offsetHeight;
 
-                // サイケデリックな波形描画ループ
                 const drawWaveform = () => {
                     animationId = requestAnimationFrame(drawWaveform);
                     analyser.getByteTimeDomainData(dataArray);
 
-                    // 残像を残すために半透明の黒で塗りつぶす
                     canvasCtx.fillStyle = 'rgba(5, 0, 10, 0.2)';
                     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-
                     canvasCtx.lineWidth = 3;
                     
-                    // 時間経過で色が変わるサイケデリックな色相変化
                     const hue = (Date.now() / 15) % 360;
                     const neonColor = `hsl(${hue}, 100%, 60%)`;
                     
@@ -315,8 +422,6 @@
                     for (let i = 0; i < bufferLength; i++) {
                         const v = dataArray[i] / 128.0;
                         const y = v * canvas.height / 2;
-
-                        // 波の振幅を少し大げさにする
                         const amplifiedY = canvas.height/2 + (y - canvas.height/2) * 1.5;
 
                         if (i === 0) {
@@ -328,7 +433,7 @@
                     }
                     canvasCtx.lineTo(canvas.width, canvas.height / 2);
                     canvasCtx.stroke();
-                    canvasCtx.shadowBlur = 0; // リセット
+                    canvasCtx.shadowBlur = 0;
                 };
                 drawWaveform();
 
@@ -337,14 +442,7 @@
                 };
 
                 mediaRecorder.onstop = () => {
-                    // リセット操作の場合はデータを保存せずに終了
-                    if (isResetting) {
-                        currentAudioBlob = null;
-                        audioChunks = [];
-                        return;
-                    }
-                    
-                    // 正常なストップ操作の場合はデータを保存
+                    if (!isRecordingActive) return; // リセット時などはスキップ
                     currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
                     downloadArea.classList.remove('hidden');
                 };
@@ -356,128 +454,175 @@
                 recordingControls.classList.remove('hidden');
                 stopBtn.classList.add('pulse-recording');
                 downloadArea.classList.add('hidden');
+                finalTranscriptionArea.classList.add('hidden');
                 
-                // タイマー開始
                 startTime = Date.now();
                 timerDisplay.classList.replace('text-neon-pink', 'text-neon-blue');
                 timerDisplay.classList.replace('glow-text-pink', 'glow-text-blue');
-                timerInterval = setInterval(updateTimer, 50); // 点滅を滑らかにするため間隔を短く
+                timerInterval = setInterval(updateTimer, 50);
 
             } catch (err) {
-                alert('マイクへのアクセスが拒否されたか、マイクが見つかりません。\nブラウザの設定でマイクを許可してください。');
+                alert('マイクへのアクセスが拒否されたか、マイクが見つかりません。');
                 console.error(err);
+                
+                // エラー時の表示
+                transcriptionPlaceholder.innerHTML = '> SYS_ERR: MICROPHONE_ACCESS_DENIED<br><span class="text-xs text-red-400 mt-2 block font-sans">マイクの許可が必要です。ブラウザの設定を確認してください。</span>';
+                transcriptionPlaceholder.classList.replace('text-neon-blue', 'text-red-500');
+                transcriptionPlaceholder.style.display = 'block';
             }
         });
+
+        // 共通の停止処理ロジック
+        function stopAllProcesses(isReset) {
+            isRecordingActive = false; // 先にフラグを折る（onendでの自動再開を防止）
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+
+            if (recognition) {
+                try { recognition.stop(); } catch(e){}
+            }
+
+            if (animationId) cancelAnimationFrame(animationId);
+            if (audioContext) audioContext.close();
+            drawFlatLine();
+            releaseWakeLock();
+            clearInterval(timerInterval);
+            
+            timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
+            timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
+            
+            if (!isReset) {
+                timerDisplay.textContent = timerDisplay.textContent.replace(' ', ':');
+            } else {
+                timerDisplay.textContent = '00:00';
+                currentAudioBlob = null;
+                audioChunks = [];
+                finalTranscript = '';
+                transcriptionDisplay.innerText = '';
+                interimDisplay.innerText = '';
+                transcriptionPlaceholder.style.display = 'block';
+                transcriptionPlaceholder.innerText = '> WAITING_FOR_VOICE_INPUT...';
+            }
+        }
 
         // 録音停止（保存する）
         stopBtn.addEventListener('click', () => {
-            isResetting = false;
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            }
-
-            if (animationId) cancelAnimationFrame(animationId);
-            if (audioContext) audioContext.close();
-            drawFlatLine();
-            releaseWakeLock(); // スリープ防止を解除
+            stopAllProcesses(false);
             
-            // UI変更
             recordingControls.classList.add('hidden');
             stopBtn.classList.remove('pulse-recording');
             startBtn.classList.remove('hidden');
-            startBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-5 h-5"></i> REBOOT_REC`;
+            startBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-5 h-5"></i> 録音を再開`;
             lucide.createIcons();
             
-            clearInterval(timerInterval);
-            timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
-            timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
-            timerDisplay.textContent = timerDisplay.textContent.replace(' ', ':'); // コロンを戻す
+            // 残った確定前の文字起こしテキストを確定させる
+            if(interimDisplay.innerText) {
+                finalTranscript += interimDisplay.innerText + '\n';
+                transcriptionDisplay.innerText = finalTranscript;
+                interimDisplay.innerText = '';
+            }
+
+            // 抽出されたテキストを表示・編集可能にする
+            finalTranscriptionInput.value = finalTranscript;
+            finalTranscriptionArea.classList.remove('hidden');
         });
 
-        // 録音リセット（データを破棄して最初から）
+        // 録音リセット
         resetBtn.addEventListener('click', () => {
-            isResetting = true;
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            }
-
-            if (animationId) cancelAnimationFrame(animationId);
-            if (audioContext) audioContext.close();
-            drawFlatLine();
-            releaseWakeLock(); // スリープ防止を解除
+            stopAllProcesses(true);
             
-            // UIを初期状態に戻す
             recordingControls.classList.add('hidden');
             stopBtn.classList.remove('pulse-recording');
             startBtn.classList.remove('hidden');
-            startBtn.innerHTML = `<i data-lucide="power" class="w-5 h-5"></i> START_REC`;
+            startBtn.innerHTML = `<i data-lucide="power" class="w-5 h-5"></i> 録音開始`;
             lucide.createIcons();
-            
-            clearInterval(timerInterval);
-            timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
-            timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
-            timerDisplay.textContent = '00:00';
             downloadArea.classList.add('hidden');
+            finalTranscriptionArea.classList.add('hidden');
         });
 
-        // 名前を付けて保存処理
-        saveBtn.addEventListener('click', async () => {
-            if (!currentAudioBlob) return;
+        // 保存機能共通ハンドラ
+        async function handleSave(blob, defaultExt, desc, acceptObj, btnElement, successHtml, originHtml) {
+            if (!blob) return;
 
             const now = new Date();
             const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-            const defaultFilename = `LOG_${dateStr}.mp3`;
+            const defaultFilename = `LOG_${dateStr}${defaultExt}`;
 
             if (window.showSaveFilePicker) {
                 try {
                     const handle = await window.showSaveFilePicker({
                         suggestedName: defaultFilename,
-                        types: [{
-                            description: 'MP3 AUDIO DATA',
-                            accept: { 'audio/mp3': ['.mp3'] },
-                        }],
+                        types: [{ description: desc, accept: acceptObj }],
                     });
                     const writable = await handle.createWritable();
-                    await writable.write(currentAudioBlob);
+                    await writable.write(blob);
                     await writable.close();
                     
-                    const originalHtml = saveBtn.innerHTML;
-                    saveBtn.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> DATA_SECURED`;
-                    saveBtn.classList.add('bg-neon-green', 'text-black');
-                    saveBtn.classList.remove('bg-transparent', 'text-neon-green');
+                    btnElement.innerHTML = successHtml;
+                    btnElement.classList.add('bg-neon-green', 'text-black', 'border-neon-green');
+                    btnElement.classList.remove('bg-transparent', 'text-neon-green', 'text-neon-blue', 'border-neon-blue');
                     lucide.createIcons();
                     setTimeout(() => {
-                        saveBtn.innerHTML = originalHtml;
-                        saveBtn.classList.remove('bg-neon-green', 'text-black');
-                        saveBtn.classList.add('bg-transparent', 'text-neon-green');
+                        btnElement.innerHTML = originHtml;
+                        btnElement.classList.remove('bg-neon-green', 'text-black');
+                        btnElement.classList.add('bg-transparent');
+                        if(defaultExt === '.mp3') btnElement.classList.add('text-neon-green');
+                        else btnElement.classList.add('text-neon-blue', 'border-neon-blue');
                         lucide.createIcons();
                     }, 3000);
 
                 } catch (err) {
-                    if (err.name !== 'AbortError') {
-                        console.error('Save Error:', err);
-                        alert('システムエラー：ファイルの保存に失敗しました。');
-                    }
+                    if (err.name !== 'AbortError') console.error('Save Error:', err);
                 }
             } else {
-                const audioUrl = URL.createObjectURL(currentAudioBlob);
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
-                a.href = audioUrl;
+                a.href = url;
                 a.download = defaultFilename;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                URL.revokeObjectURL(audioUrl);
+                URL.revokeObjectURL(url);
             }
+        }
+
+        // MP3保存
+        saveBtn.addEventListener('click', () => {
+            handleSave(
+                currentAudioBlob, 
+                '.mp3', 
+                'MP3音声データ', 
+                { 'audio/mp3': ['.mp3'] }, 
+                saveBtn,
+                `<i data-lucide="check" class="w-4 h-4"></i> 保存完了`,
+                `<i data-lucide="music" class="w-4 h-4"></i> MP3保存`
+            );
+        });
+
+        // テキスト保存
+        saveTextBtn.addEventListener('click', () => {
+            // 編集エリアのテキストを取得して保存する
+            const textToSave = finalTranscriptionInput.value || "文字起こしデータがありません。";
+            const textBlob = new Blob([textToSave], { type: 'text/plain' });
+            handleSave(
+                textBlob, 
+                '.txt', 
+                'テキストデータ', 
+                { 'text/plain': ['.txt'] }, 
+                saveTextBtn,
+                `<i data-lucide="check" class="w-4 h-4"></i> 保存完了`,
+                `<i data-lucide="file-text" class="w-4 h-4"></i> テキスト保存`
+            );
         });
 
         // AI連携関連
-        const promptText = `アップロードした音声データから、Wordにそのまま貼り付けられる形式でビジネス議事録を作成してください。
+        const promptText = `アップロードした音声データ（または文字起こしテキスト）から、Wordにそのまま貼り付けられる形式でビジネス議事録を作成してください。
 Markdownの記号（**や#など）は一切使わず、自然なテキストで出力してください。
-以下のフォーマットに厳密に従い、音声の内容から情報を抽出して空欄を埋めてください。
+以下のフォーマットに厳密に従い、内容から情報を抽出して空欄を埋めてください。
 
 【会議名】議事録
 
