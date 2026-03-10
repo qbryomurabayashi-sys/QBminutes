@@ -80,7 +80,12 @@
         ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.5); border-radius: 4px; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 relative">
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+
+    <!-- 【追加】アプリ内ブラウザ警告バナー -->
+    <div id="appBrowserWarning" class="hidden w-full max-w-lg bg-red-600 text-white text-xs p-3 text-center font-bold rounded-lg mb-4 z-20 shadow-[0_0_15px_rgba(239,68,68,0.5)] leading-relaxed">
+        ⚠️ アプリ内ブラウザではマイクが使えない場合があります。<br>右上のメニュー等から「Safariで開く」または「ブラウザ(Chrome)で開く」を選んでください。
+    </div>
 
     <div class="absolute top-10 left-10 w-64 h-64 bg-neon-purple/20 rounded-full blur-[100px] pointer-events-none"></div>
     <div class="absolute bottom-10 right-10 w-80 h-80 bg-neon-blue/20 rounded-full blur-[120px] pointer-events-none"></div>
@@ -253,6 +258,7 @@
         // 状態管理
         let wakeLock = null;
         let isRecordingActive = false;
+        let isResetting = false;
         
         // 文字起こし関連の変数
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -333,11 +339,17 @@
 
             } catch (err) {
                 console.error('デバイス一覧の取得に失敗しました', err);
-                alert('マイクのアクセスが拒否されているため、デバイス一覧を取得できません。');
+                alert('マイクのアクセスが拒否されているため、デバイス一覧を取得できません。\nブラウザの設定からマイクを許可してください。');
             }
         }
 
         refreshMicBtn.addEventListener('click', updateMicList);
+
+        // 【追加】アプリ内ブラウザ（LINE, Twitter等）の検知
+        const isAppBrowser = /Line|Instagram|Twitter|FBAN|FBAV|FBIOS/i.test(navigator.userAgent);
+        if (isAppBrowser) {
+            document.getElementById('appBrowserWarning').classList.remove('hidden');
+        }
 
         // 音声認識の初期化
         if (SpeechRecognition) {
@@ -447,17 +459,16 @@
 
         startBtn.addEventListener('click', async () => {
             try {
-                // 選択されたマイクデバイスIDを取得
                 const selectedDeviceId = micSelect.value;
                 const audioConstraints = selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true;
 
-                // 選択されたマイクでストリームを取得
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
                 
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
                 currentAudioBlob = null;
                 isRecordingActive = true;
+                isResetting = false;
 
                 await requestWakeLock();
 
@@ -519,7 +530,7 @@
                 };
 
                 mediaRecorder.onstop = () => {
-                    if (!isRecordingActive) return;
+                    if (isResetting) return;
                     currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
                     downloadArea.classList.remove('hidden');
                 };
@@ -531,7 +542,7 @@
                 stopBtn.classList.add('pulse-recording');
                 downloadArea.classList.add('hidden');
                 finalTranscriptionArea.classList.add('hidden');
-                micSelectContainer.classList.add('opacity-50', 'pointer-events-none'); // 録音中はマイク変更不可
+                micSelectContainer.classList.add('opacity-50', 'pointer-events-none');
                 
                 startTime = Date.now();
                 timerDisplay.classList.replace('text-neon-pink', 'text-neon-blue');
@@ -539,9 +550,26 @@
                 timerInterval = setInterval(updateTimer, 50);
 
             } catch (err) {
-                alert('マイクへのアクセスが拒否されたか、マイクが見つかりません。');
-                console.error(err);
-                transcriptionPlaceholder.innerHTML = '> SYS_ERR: MICROPHONE_ACCESS_DENIED<br><span class="text-xs text-red-400 mt-2 block font-sans">マイクの許可が必要です。ブラウザの設定を確認してください。</span>';
+                console.error('Mic Access Error:', err);
+                
+                const errName = err.name || 'UnknownError';
+                const errMessage = err.message || '詳細不明';
+                
+                let errorMsg = `マイク機能の起動に失敗しました。\n\nエラー種別: ${errName}\n詳細: ${errMessage}\n\n`;
+                
+                if (errName === 'NotReadableError' || errName === 'TrackStartError' || errName === 'ConcurrentMicAccessError') {
+                    errorMsg += '💡 【考えられる原因】\n他のアプリ（電話、LINE通話、Zoom、音声認識アプリ等）がバックグラウンドでマイクを使用中・占有している可能性が高いです。\n\n→ 対策: バックグラウンドで開いている他のアプリを完全に終了させてから再度お試しください。';
+                } else if (errName === 'NotAllowedError') {
+                    errorMsg += '💡 【考えられる原因】\n設定で「許可」されているにも関わらずこのエラーが出る場合、ブラウザの一時的な不具合や、ページ読み込み時のキャッシュの問題の可能性があります。\n\n→ 対策: ブラウザ（SafariやChrome）のタブを一度すべて閉じ、ブラウザアプリ自体を終了（タスクキル）させてから開き直してみてください。';
+                } else if (errName === 'NotFoundError') {
+                    errorMsg += '💡 【考えられる原因】\nスマートフォンに有効なマイクが認識されていません。\n\n→ 対策: Bluetoothイヤホン等の接続を一度切るか、再接続して確認してください。';
+                } else {
+                    errorMsg += '💡 【対策】\nブラウザのタブを閉じて開き直すか、スマートフォンの再起動をお試しください。';
+                }
+                
+                alert(errorMsg);
+                
+                transcriptionPlaceholder.innerHTML = `> SYS_ERR: ${errName}<br><span class="text-xs text-red-400 mt-3 block font-sans text-left leading-relaxed bg-red-900/30 p-2 rounded border border-red-500/50">${errorMsg.replace(/\n/g, '<br>')}</span>`;
                 transcriptionPlaceholder.classList.replace('text-neon-blue', 'text-red-500');
                 transcriptionPlaceholder.style.display = 'block';
             }
@@ -549,6 +577,7 @@
 
         function stopAllProcesses(isReset) {
             isRecordingActive = false;
+            isResetting = isReset;
             
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
@@ -565,7 +594,7 @@
             releaseWakeLock();
             clearInterval(timerInterval);
             
-            micSelectContainer.classList.remove('opacity-50', 'pointer-events-none'); // マイク変更可能に戻す
+            micSelectContainer.classList.remove('opacity-50', 'pointer-events-none');
 
             timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
             timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
@@ -621,6 +650,8 @@
             const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
             const defaultFilename = `LOG_${dateStr}${defaultExt}`;
 
+            let saved = false;
+
             if (window.showSaveFilePicker) {
                 try {
                     const handle = await window.showSaveFilePicker({
@@ -630,6 +661,7 @@
                     const writable = await handle.createWritable();
                     await writable.write(blob);
                     await writable.close();
+                    saved = true;
                     
                     btnElement.innerHTML = successHtml;
                     btnElement.classList.add('bg-neon-green', 'text-black', 'border-neon-green');
@@ -644,9 +676,12 @@
                         lucide.createIcons();
                     }, 3000);
                 } catch (err) {
-                    if (err.name !== 'AbortError') console.error('Save Error:', err);
+                    if (err.name === 'AbortError') return;
+                    console.warn('保存ダイアログの表示が制限されています。通常のダウンロードに切り替えます。', err);
                 }
-            } else {
+            }
+            
+            if (!saved) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
@@ -655,7 +690,7 @@
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                setTimeout(() => URL.revokeObjectURL(url), 100);
             }
         }
 
