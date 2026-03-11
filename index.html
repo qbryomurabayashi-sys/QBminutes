@@ -378,7 +378,7 @@ Markdown記号は使わず、自然なテキストで出力すること。
   };
 
   return (
-    <div className="min-h-screen bg-zinc-900 flex flex-col items-center justify-center p-4 select-none font-mono overflow-hidden">
+    <div translate="no" className="min-h-screen bg-zinc-900 flex flex-col items-center justify-center p-4 select-none font-mono overflow-hidden relative">
       {/* 背景 */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#27272a_0%,_#000000_100%)] pointer-events-none"></div>
 
@@ -573,7 +573,7 @@ Markdown記号は使わず、自然なテキストで出力すること。
                 <div className="relative z-20 text-[#39ff14] text-shadow-crt">
                   {!transcription && !interimText && (
                     <div className="opacity-50 italic font-mono text-xs">
-                      {isRecording ? "> LISTENING TO SIGNAL..." : "> STANDBY. WAITING FOR RECORDING."}
+                      {isRecording ? "&gt; LISTENING TO SIGNAL..." : "&gt; STANDBY. WAITING FOR RECORDING."}
                     </div>
                   )}
                   <span className="whitespace-pre-wrap">{transcription}</span>
