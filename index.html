@@ -1,712 +1,329 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>議事録アシスト＆録音ツール</title>
-    <!-- 未来的なフォントをインポート -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        neon: {
-                            pink: '#ff2a85',
-                            blue: '#00f3ff',
-                            purple: '#bc13fe',
-                            green: '#39ff14',
-                            yellow: '#fcee0a'
-                        },
-                        dark: {
-                            bg: '#05000a',
-                            card: 'rgba(15, 5, 30, 0.65)'
-                        }
-                    },
-                    fontFamily: {
-                        cyber: ['Orbitron', 'sans-serif'],
-                        sans: ['"Noto Sans JP"', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Noto Sans JP', sans-serif;
-            background: linear-gradient(-45deg, #0f0c29, #302b63, #0a0015, #240b36);
-            background-size: 400% 400%;
-            animation: cosmic-bg 15s ease infinite;
-            color: #e0e0e0;
-            overflow-x: hidden;
-        }
-        
-        @keyframes cosmic-bg {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, Download, FileText, Cpu, Info, RefreshCw, X, AlertTriangle } from 'lucide-react';
 
-        .pulse-recording {
-            animation: pulse-neon 1.5s infinite;
-        }
-        
-        @keyframes pulse-neon {
-            0% { box-shadow: 0 0 0 0 rgba(255, 42, 133, 0.7); }
-            70% { box-shadow: 0 0 0 20px rgba(255, 42, 133, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 42, 133, 0); }
-        }
+/**
+ * Capsule Corp. OS "DRAGON RADAR TYPE-Z"
+ * ドラゴンレーダー型 UI ＋ 完全版機能（文字起こし・AI同期・マイク選択など）
+ */
 
-        /* ネオンテキストエフェクト */
-        .glow-text-blue {
-            text-shadow: 0 0 8px #00f3ff, 0 0 20px #00f3ff;
-        }
-        .glow-text-pink {
-            text-shadow: 0 0 8px #ff2a85, 0 0 20px #ff2a85;
-        }
-        .glow-text-yellow {
-            text-shadow: 0 0 8px #fcee0a, 0 0 20px #fcee0a;
-        }
-        
-        button, select {
-            transition: all 0.3s ease-in-out;
-        }
+// ==============================================================================
+// ⚙️ カスタムアイコン設定 (スマホのホーム画面 / PCのデスクトップ用)
+// ==============================================================================
+// アップロードいただいたホイポイカプセルの画像ファイル名を指定しています
+const APP_ICON_URL = "Gemini_Generated_Image_ot5vfqot5vfqot5v (1).jpg"; 
 
-        /* スクロールバー装飾 */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0, 243, 255, 0.1); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.5); border-radius: 4px; }
-    </style>
-</head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
 
-    <!-- 【追加】アプリ内ブラウザ警告バナー -->
-    <div id="appBrowserWarning" class="hidden w-full max-w-lg bg-red-600 text-white text-xs p-3 text-center font-bold rounded-lg mb-4 z-20 shadow-[0_0_15px_rgba(239,68,68,0.5)] leading-relaxed">
-        ⚠️ アプリ内ブラウザではマイクが使えない場合があります。<br>右上のメニュー等から「Safariで開く」または「ブラウザ(Chrome)で開く」を選んでください。
-    </div>
+export default function App() {
+  const [appState, setAppState] = useState('boot'); // 'boot', 'active'
+  const [bootProgress, setBootProgress] = useState(0);
+  const [bootText, setBootText] = useState('INITIALIZING...');
 
-    <div class="absolute top-10 left-10 w-64 h-64 bg-neon-purple/20 rounded-full blur-[100px] pointer-events-none"></div>
-    <div class="absolute bottom-10 right-10 w-80 h-80 bg-neon-blue/20 rounded-full blur-[120px] pointer-events-none"></div>
+  // --- 録音・データ状態 ---
+  const [isRecording, setIsRecording] = useState(false);
+  const [signals, setSignals] = useState([]); // ドラゴンボール（録音データ履歴）
+  const [timer, setTimer] = useState('00:00:00');
+  const [audioChunks, setAudioChunks] = useState([]);
+  const [currentAudioBlob, setCurrentAudioBlob] = useState(null);
 
-    <div class="bg-dark-card backdrop-blur-xl rounded-2xl shadow-[0_0_30px_rgba(188,19,254,0.3)] w-full max-w-lg overflow-hidden border border-neon-purple/50 relative z-10">
-        
-        <div class="p-6 text-center border-b border-neon-purple/30 bg-black/40">
-            <div class="flex justify-center mb-3 text-neon-blue drop-shadow-[0_0_10px_#00f3ff]">
-                <i data-lucide="mic" class="w-12 h-12"></i>
-            </div>
-            <h1 class="text-2xl font-cyber font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink glow-text-blue">VOICE LOG.AI</h1>
-            <p class="text-neon-blue/80 text-xs mt-2 font-cyber tracking-widest">>> 自動文字起こしプロトコル起動</p>
-        </div>
+  // --- 文字起こし状態 ---
+  const [transcription, setTranscription] = useState('');
+  const [interimText, setInterimText] = useState('');
+  
+  // --- デバイス・システム状態 ---
+  const [micList, setMicList] = useState([]);
+  const [selectedMic, setSelectedMic] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
+  const [sysError, setSysError] = useState(null);
 
-        <div class="p-6 space-y-6">
-            
-            <section class="bg-black/40 rounded-xl p-5 border border-neon-blue/40 shadow-[inset_0_0_15px_rgba(0,243,255,0.1)]">
-                <h2 class="text-md font-cyber font-bold text-neon-blue mb-4 flex items-center gap-2 border-b border-neon-blue/30 pb-2">
-                    <span class="text-xs bg-neon-blue text-black px-2 py-1 rounded">システム.01</span>
-                    音声録音＆解析モジュール
-                </h2>
-                
-                <div class="text-center">
-                    <div class="text-5xl font-cyber font-bold text-neon-pink glow-text-pink tracking-widest mb-4" id="timerDisplay" aria-live="polite">00:00</div>
-                    
-                    <canvas id="visualizer" class="w-full h-16 mb-4 rounded bg-black/80 border border-neon-pink/30 shadow-[0_0_10px_rgba(255,42,133,0.2)]" aria-label="音声波形"></canvas>
-                    
-                    <div class="mb-5 relative text-left">
-                        <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none rounded-t-md"></div>
-                        <div id="transcriptionContainer" class="w-full h-48 overflow-y-auto bg-black/60 border border-neon-blue/30 rounded-md p-4 text-base text-gray-200 font-sans shadow-[inset_0_0_15px_rgba(0,243,255,0.05)] leading-relaxed">
-                            <span id="transcriptionDisplay" class="whitespace-pre-wrap"></span>
-                            <span id="interimDisplay" class="text-neon-pink animate-pulse font-bold"></span>
-                            <div id="transcriptionPlaceholder" class="text-neon-blue text-center mt-16 font-cyber text-sm tracking-widest opacity-70 animate-pulse">> WAITING_FOR_VOICE_INPUT...<br><span class="text-xs text-gray-400 mt-2 block font-sans">（マイクに向かって話すと、ここにリアルタイムで文字起こしが表示されます）</span></div>
-                        </div>
-                        <div class="absolute bottom-0 left-0 w-full h-4 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none rounded-b-md"></div>
-                    </div>
+  // Refs
+  const mediaRecorderRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const startTimeRef = useRef(null);
+  const timerIntervalRef = useRef(null);
+  const wakeLockRef = useRef(null);
+  const terminalEndRef = useRef(null);
 
-                    <!-- 【追加】マイク選択UI -->
-                    <div class="mb-4 text-left" id="micSelectContainer">
-                        <div class="flex justify-between items-end mb-1">
-                            <label class="text-neon-blue text-xs font-cyber tracking-widest">> AUDIO_INPUT_DEVICE (マイク選択)</label>
-                            <button id="openHelpBtn" class="text-neon-pink text-xs hover:underline flex items-center gap-1 transition-colors hover:text-white">
-                                <i data-lucide="help-circle" class="w-3 h-3"></i> 相手の声も録音するには？
-                            </button>
-                        </div>
-                        <div class="flex gap-2">
-                            <select id="micSelect" class="flex-1 bg-black/80 border border-neon-blue/50 rounded-md p-2 text-sm text-gray-300 font-sans focus:outline-none focus:border-neon-blue focus:shadow-[0_0_10px_rgba(0,243,255,0.5)] appearance-none cursor-pointer">
-                                <option value="">デフォルトマイク (許可待ち)</option>
-                            </select>
-                            <button id="refreshMicBtn" class="bg-black/80 border border-neon-blue/50 text-neon-blue px-3 rounded-md hover:bg-neon-blue hover:text-black hover:shadow-[0_0_10px_#00f3ff] transition flex items-center justify-center" title="マイク一覧を更新">
-                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </div>
+  // --- アプリ内ブラウザ検知 ---
+  const isAppBrowser = /Line|Instagram|Twitter|FBAN|FBAV|FBIOS/i.test(navigator.userAgent);
 
-                    <div class="flex flex-col gap-3">
-                        <button id="startBtn" class="bg-transparent border-2 border-neon-pink text-neon-pink hover:bg-neon-pink hover:text-black hover:shadow-[0_0_20px_#ff2a85] text-lg font-bold py-3 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                            <i data-lucide="power" class="w-5 h-5"></i> 録音開始
-                        </button>
-                        
-                        <div id="recordingControls" class="hidden flex gap-3 w-full">
-                            <button id="stopBtn" class="flex-1 bg-neon-pink text-black border-2 border-neon-pink shadow-[0_0_20px_#ff2a85] text-md font-bold py-3 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                                <i data-lucide="square" class="w-5 h-5 fill-current"></i> 停止
-                            </button>
-                            <button id="resetBtn" class="flex-1 bg-transparent border-2 border-neon-yellow text-neon-yellow hover:bg-neon-yellow hover:text-black hover:shadow-[0_0_20px_#fcee0a] text-md font-bold py-3 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                                <i data-lucide="trash-2" class="w-5 h-5"></i> リセット
-                            </button>
-                        </div>
-                    </div>
+  // --- アプリアイコンとPWA（全画面化）の設定 ---
+  useEffect(() => {
+    if (!APP_ICON_URL) return;
 
-                    <div id="downloadArea" class="hidden mt-5 pt-5 border-t border-neon-blue/30">
-                        <div class="bg-neon-green/10 border border-neon-green/50 rounded-lg p-3 mb-4">
-                            <p class="text-neon-green font-cyber tracking-widest text-sm flex items-center justify-center gap-2 drop-shadow-[0_0_5px_#39ff14]">
-                                <i data-lucide="check-circle" class="w-4 h-4"></i> 音声＆テキストデータを保存しました
-                            </p>
-                        </div>
+    // ファビコン（PCタブ用）
+    let linkIcon = document.querySelector("link[rel~='icon']");
+    if (!linkIcon) {
+      linkIcon = document.createElement('link');
+      linkIcon.rel = 'icon';
+      document.head.appendChild(linkIcon);
+    }
+    linkIcon.href = APP_ICON_URL;
 
-                        <div id="finalTranscriptionArea" class="hidden mb-4 text-left">
-                            <label class="text-neon-blue text-xs font-cyber tracking-widest mb-2 block">> 抽出されたテキストデータ (編集可能)</label>
-                            <textarea id="finalTranscriptionInput" class="w-full h-32 bg-black/80 border border-neon-blue/50 rounded-md p-3 text-sm text-gray-300 font-sans shadow-[inset_0_0_15px_rgba(0,243,255,0.1)] focus:outline-none focus:border-neon-blue focus:shadow-[0_0_10px_rgba(0,243,255,0.5)] resize-y" placeholder="ここに文字起こし結果が表示されます。"></textarea>
-                        </div>
+    // スマホ・タブレット用ホーム画面アイコン
+    let appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+    if (!appleIcon) {
+      appleIcon = document.createElement('link');
+      appleIcon.rel = 'apple-touch-icon';
+      document.head.appendChild(appleIcon);
+    }
+    appleIcon.href = APP_ICON_URL;
 
-                        <div class="flex gap-2">
-                            <button id="saveBtn" class="flex-1 bg-transparent border-2 border-neon-green text-neon-green hover:bg-neon-green hover:text-black hover:shadow-[0_0_20px_#39ff14] text-xs font-bold py-3 px-2 rounded-lg font-cyber tracking-wider flex items-center justify-center gap-1">
-                                <i data-lucide="music" class="w-4 h-4"></i> MP3保存
-                            </button>
-                            <button id="saveTextBtn" class="flex-1 bg-transparent border-2 border-neon-blue text-neon-blue hover:bg-neon-blue hover:text-black hover:shadow-[0_0_20px_#00f3ff] text-xs font-bold py-3 px-2 rounded-lg font-cyber tracking-wider flex items-center justify-center gap-1">
-                                <i data-lucide="file-text" class="w-4 h-4"></i> テキスト保存
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+    // スマホホーム画面から起動時に全画面（アプリ風）にするメタタグ
+    const metaTags = [
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+      { name: 'theme-color', content: '#18181b' } // bg-zinc-900に合わせてステータスバーを黒に
+    ];
 
-            <section class="bg-black/40 rounded-xl p-5 border border-neon-purple/40 shadow-[inset_0_0_15px_rgba(188,19,254,0.1)]">
-                <h2 class="text-md font-cyber font-bold text-neon-purple mb-4 flex items-center gap-2 border-b border-neon-purple/30 pb-2">
-                    <span class="text-xs bg-neon-purple text-black px-2 py-1 rounded">システム.02</span>
-                    AI連携同期
-                </h2>
-                
-                <div class="bg-black/60 p-4 rounded border border-neon-purple/30 mb-5 text-sm">
-                    <h3 class="font-cyber font-bold text-neon-blue mb-2 tracking-wider drop-shadow-[0_0_3px_#00f3ff]">> NotebookLM プロトコル</h3>
-                    <ol class="list-decimal list-inside text-gray-300 space-y-2 opacity-90">
-                        <li>下のボタンで指示文をクリップボードにコピーし、AIを展開。</li>
-                        <li>「新しいソース」へ<strong>保存した音声やテキストデータ</strong>をアップロード。</li>
-                        <li>ターミナル（チャット欄）に<strong>指示文をペーストして実行</strong>。</li>
-                    </ol>
-                </div>
-                
-                <button id="actionBtn" class="w-full bg-transparent border-2 border-neon-blue text-neon-blue hover:bg-neon-blue hover:text-black hover:shadow-[0_0_20px_#00f3ff] font-bold py-4 px-6 rounded-lg font-cyber tracking-widest flex items-center justify-center gap-2">
-                    <i data-lucide="cpu" class="w-5 h-5"></i> プロンプトをコピー ＆ AIを起動
-                </button>
-                
-                <div id="successMsg" class="hidden mt-4 text-black font-cyber font-bold text-center bg-neon-blue p-2 rounded shadow-[0_0_15px_#00f3ff]" role="alert">
-                    > コピー完了。貼り付け待機中。
-                </div>
-            </section>
-        </div>
-    </div>
+    metaTags.forEach(({ name, content }) => {
+      let meta = document.querySelector(`meta[name='${name}']`);
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = name;
+        document.head.appendChild(meta);
+      }
+      meta.content = content;
+    });
+  }, []);
 
-    <!-- ステレオミキサー設定ガイド モーダル -->
-    <div id="helpModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-dark-card border border-neon-pink/50 rounded-xl shadow-[0_0_30px_rgba(255,42,133,0.3)] w-full max-w-lg overflow-hidden relative">
-            <div class="bg-black/60 border-b border-neon-pink/30 p-4 flex justify-between items-center">
-                <h3 class="text-neon-pink font-cyber font-bold tracking-widest flex items-center gap-2">
-                    <i data-lucide="info" class="w-5 h-5"></i> ZOOMの相手の声を録音する方法
-                </h3>
-                <button id="closeHelpBtn" class="text-gray-400 hover:text-white transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-5 text-sm text-gray-300 space-y-4 max-h-[70vh] overflow-y-auto font-sans leading-relaxed">
-                <p class="text-neon-blue font-bold">PCから流れる音（ZOOMや動画の相手の声）を録音・文字起こしするには、Windowsの「ステレオミキサー」機能を使用します。</p>
-                
-                <div class="space-y-2">
-                    <h4 class="text-white font-bold border-l-2 border-neon-pink pl-2">設定手順 (Windowsの場合)</h4>
-                    <ol class="list-decimal list-inside space-y-2 ml-2">
-                        <li>タスクバー右下の「スピーカー」アイコンを右クリックし、<strong>「サウンドの設定」</strong>を開く。</li>
-                        <li>下部にある<strong>「サウンド コントロール パネル」</strong>（または「その他のサウンド設定」）をクリック。</li>
-                        <li>開いたウィンドウの<strong>「録音」</strong>タブを選択する。</li>
-                        <li>空いている場所で右クリックし、<strong>「無効なデバイスの表示」</strong>にチェックを入れる。</li>
-                        <li>グレー表示された<strong>「ステレオミキサー」</strong>が表示されたら、右クリックして<strong>「有効」</strong>にする。</li>
-                        <li>ブラウザ（Chromeなど）を再起動し、本ツールのマイク選択で<strong>「ステレオミキサー」</strong>を選ぶ。</li>
-                    </ol>
-                </div>
-                
-                <div class="bg-black/50 p-3 rounded border border-gray-600 text-xs mt-4">
-                    <span class="text-neon-yellow font-bold">⚠️ 注意点</span><br>
-                    ・ステレオミキサーを使用中は、自分のマイクの音は拾われない場合があります。両方拾いたい場合は別途仮想オーディオソフト等が必要です。<br>
-                    ・Macをご利用の場合はステレオミキサー機能がないため、別途「BlackHole」などの仮想オーディオデバイスのインストールが必要です。
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        lucide.createIcons();
-
-        // 録音関連の変数
-        let mediaRecorder;
-        let audioChunks = [];
-        let currentAudioBlob = null;
-        let startTime;
-        let timerInterval;
-        let audioContext;
-        let analyser;
-        let dataArray;
-        let animationId;
-        
-        // 状態管理
-        let wakeLock = null;
-        let isRecordingActive = false;
-        let isResetting = false;
-        
-        // 文字起こし関連の変数
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition = null;
-        let finalTranscript = '';
-
-        // DOM要素
-        const startBtn = document.getElementById('startBtn');
-        const recordingControls = document.getElementById('recordingControls');
-        const stopBtn = document.getElementById('stopBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const timerDisplay = document.getElementById('timerDisplay');
-        const downloadArea = document.getElementById('downloadArea');
-        const saveBtn = document.getElementById('saveBtn');
-        const saveTextBtn = document.getElementById('saveTextBtn');
-        const canvas = document.getElementById('visualizer');
-        const canvasCtx = canvas.getContext('2d');
-        const transcriptionContainer = document.getElementById('transcriptionContainer');
-        const transcriptionDisplay = document.getElementById('transcriptionDisplay');
-        const interimDisplay = document.getElementById('interimDisplay');
-        const transcriptionPlaceholder = document.getElementById('transcriptionPlaceholder');
-        const finalTranscriptionArea = document.getElementById('finalTranscriptionArea');
-        const finalTranscriptionInput = document.getElementById('finalTranscriptionInput');
-        
-        const micSelect = document.getElementById('micSelect');
-        const refreshMicBtn = document.getElementById('refreshMicBtn');
-        const micSelectContainer = document.getElementById('micSelectContainer');
-
-        // モーダル関連のDOMとイベント
-        const helpModal = document.getElementById('helpModal');
-        const openHelpBtn = document.getElementById('openHelpBtn');
-        const closeHelpBtn = document.getElementById('closeHelpBtn');
-
-        openHelpBtn.addEventListener('click', () => {
-            helpModal.classList.remove('hidden');
+  // --- 起動シーケンス (ローディング画面) ---
+  useEffect(() => {
+    if (appState === 'boot') {
+      const texts = [
+        "CONNECTING TO SATELLITE...",
+        "AUTHENTICATING CAPSULE CORP. ID...",
+        "CALIBRATING RADAR WAVES...",
+        "INITIALIZING SPEECH RECOGNITION...",
+        "SYSTEM READY."
+      ];
+      
+      let currentIdx = 0;
+      const interval = setInterval(() => {
+        setBootProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setTimeout(() => setAppState('active'), 1000);
+            return 100;
+          }
+          const next = prev + 2;
+          const textIdx = Math.floor((next / 100) * texts.length);
+          if (textIdx > currentIdx && texts[textIdx]) {
+            currentIdx = textIdx;
+            setBootText(texts[textIdx]);
+          }
+          return next;
         });
+      }, 50);
+      return () => clearInterval(interval);
+    }
+  }, [appState]);
 
-        closeHelpBtn.addEventListener('click', () => {
-            helpModal.classList.add('hidden');
-        });
+  // --- 初期化（マイク一覧取得・音声認識・WakeLock） ---
+  useEffect(() => {
+    if (appState === 'active') {
+      updateMicList();
 
-        // モーダル外の暗い部分をクリックで閉じる
-        helpModal.addEventListener('click', (e) => {
-            if (e.target === helpModal) {
-                helpModal.classList.add('hidden');
-            }
-        });
-
-        // 【追加】マイク一覧の取得と更新
-        async function updateMicList() {
-            try {
-                // デバイス名を取得するために一度だけダミーでマイクアクセスを要求
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => track.stop()); // すぐ閉じる
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const audioInputs = devices.filter(device => device.kind === 'audioinput');
-                
-                micSelect.innerHTML = '';
-                
-                if (audioInputs.length === 0) {
-                    micSelect.innerHTML = '<option value="">マイクが見つかりません</option>';
-                    return;
-                }
-
-                audioInputs.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    // デバイス名がない場合は連番を付ける
-                    option.text = device.label || `マイク ${index + 1}`;
-                    micSelect.appendChild(option);
-                });
-                
-                // アイコンを回転させてフィードバック
-                const icon = refreshMicBtn.querySelector('i');
-                icon.classList.add('animate-spin');
-                setTimeout(() => icon.classList.remove('animate-spin'), 500);
-
-            } catch (err) {
-                console.error('デバイス一覧の取得に失敗しました', err);
-                alert('マイクのアクセスが拒否されているため、デバイス一覧を取得できません。\nブラウザの設定からマイクを許可してください。');
-            }
-        }
-
-        refreshMicBtn.addEventListener('click', updateMicList);
-
-        // 【追加】アプリ内ブラウザ（LINE, Twitter等）の検知
-        const isAppBrowser = /Line|Instagram|Twitter|FBAN|FBAV|FBIOS/i.test(navigator.userAgent);
-        if (isAppBrowser) {
-            document.getElementById('appBrowserWarning').classList.remove('hidden');
-        }
-
-        // 音声認識の初期化
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.lang = 'ja-JP';
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            
-            recognition.onresult = (event) => {
-                let interimTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript + '\n';
-                    } else {
-                        interimTranscript += transcript;
-                    }
-                }
-                
-                transcriptionPlaceholder.style.display = 'none';
-                transcriptionDisplay.innerText = finalTranscript;
-                interimDisplay.innerText = interimTranscript;
-                transcriptionContainer.scrollTop = transcriptionContainer.scrollHeight;
-            };
-
-            recognition.onend = () => {
-                if (isRecordingActive) {
-                    try { recognition.start(); } catch (e) {}
-                }
-            };
-
-            recognition.onerror = (event) => {
-                if (event.error !== 'aborted' && isRecordingActive) {
-                    setTimeout(() => {
-                        try { recognition.start(); } catch(e){}
-                    }, 1000);
-                }
-            };
-        } else {
-            transcriptionPlaceholder.innerText = "> SYS_ERR: SPEECH_RECOGNITION_NOT_SUPPORTED_IN_THIS_BROWSER";
-            transcriptionPlaceholder.classList.replace('text-gray-500', 'text-red-500');
-        }
-
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) {
-                if (err.name === 'NotAllowedError') {
-                    console.warn('Wake Lock API: 実行環境の権限により無効化されています。');
-                }
-            }
-        }
-
-        function releaseWakeLock() {
-            if (wakeLock !== null) {
-                wakeLock.release().then(() => { wakeLock = null; }).catch(e => {});
-            }
-        }
-
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible' && isRecordingActive) {
-                await requestWakeLock();
-            }
-        });
-
-        function drawFlatLine() {
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            canvasCtx.fillStyle = '#05000a';
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            canvasCtx.strokeStyle = 'rgba(0, 243, 255, 0.1)';
-            canvasCtx.lineWidth = 1;
-            for(let i=0; i<canvas.width; i+=20) {
-                canvasCtx.beginPath(); canvasCtx.moveTo(i, 0); canvasCtx.lineTo(i, canvas.height); canvasCtx.stroke();
-            }
-            canvasCtx.lineWidth = 2;
-            canvasCtx.strokeStyle = '#00f3ff';
-            canvasCtx.shadowBlur = 10;
-            canvasCtx.shadowColor = '#00f3ff';
-            canvasCtx.beginPath();
-            canvasCtx.moveTo(0, canvas.height / 2);
-            canvasCtx.lineTo(canvas.width, canvas.height / 2);
-            canvasCtx.stroke();
-            canvasCtx.shadowBlur = 0;
-        }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.continuous = true;
+        recognition.interimResults = true;
         
-        window.addEventListener('load', drawFlatLine);
-        window.addEventListener('resize', drawFlatLine);
-
-        function updateTimer() {
-            const now = Date.now();
-            const diff = now - startTime;
-            const totalSeconds = Math.floor(diff / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-            const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-            const colon = diff % 1000 < 500 ? ':' : ' ';
-            
-            if (hours > 0) {
-                timerDisplay.textContent = `${hours}${colon}${minutes}${colon}${seconds}`;
+        recognition.onresult = (event) => {
+          let interim = '';
+          let final = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              final += event.results[i][0].transcript + '\n';
             } else {
-                timerDisplay.textContent = `${minutes}${colon}${seconds}`;
+              interim += event.results[i][0].transcript;
             }
+          }
+          if (final) setTranscription(prev => prev + final);
+          setInterimText(interim);
+        };
+
+        recognition.onend = () => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            try { recognition.start(); } catch (e) {}
+          }
+        };
+
+        recognitionRef.current = recognition;
+      } else {
+        setSysError("WARNING: VOICE RECOGNITION MODULE NOT SUPPORTED IN THIS BROWSER.");
+      }
+
+      // Visibility change for WakeLock
+      const handleVisibilityChange = async () => {
+        if (wakeLockRef.current !== null && document.visibilityState === 'visible' && isRecording) {
+          await requestWakeLock();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
+  }, [appState]);
+
+  // 自動スクロール
+  useEffect(() => {
+    if (terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [transcription, interimText]);
+
+  // --- 機能メソッド ---
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) wakeLockRef.current = await navigator.wakeLock.request('screen');
+    } catch (err) { console.warn('Wake Lock restricted'); }
+  };
+
+  const releaseWakeLock = () => {
+    if (wakeLockRef.current !== null) {
+      wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(()=>{});
+    }
+  };
+
+  const updateMicList = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices.filter(device => device.kind === 'audioinput');
+      setMicList(audioInputs);
+      if (audioInputs.length > 0 && !selectedMic) setSelectedMic(audioInputs[0].deviceId);
+      setSysError(null);
+    } catch (err) {
+      setSysError("ERR: MIC ACCESS DENIED. CHECK PERMISSIONS.");
+    }
+  };
+
+  // 録音開始・停止
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // --- 停止処理 ---
+      setIsRecording(false);
+      clearInterval(timerIntervalRef.current);
+      releaseWakeLock();
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch(e){}
+        if (interimText) {
+          setTranscription(prev => prev + interimText + '\n');
+          setInterimText('');
+        }
+      }
+
+      // レーダーにボールを追加し、最新のBlobを生成（非同期）
+      setTimeout(() => {
+        setAudioChunks(chunks => {
+          const blob = new Blob(chunks, { type: 'audio/mp3' });
+          setCurrentAudioBlob(blob);
+          
+          // ボール追加
+          const maxRadius = 35;
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * maxRadius;
+          const newSignal = {
+            id: Date.now(),
+            x: 50 + distance * Math.cos(angle),
+            y: 50 + distance * Math.sin(angle),
+            blob: blob,
+            stars: (signals.length % 7) + 1,
+            date: new Date().toLocaleTimeString('ja-JP', { hour12: false })
+          };
+          setSignals(prev => [...prev, newSignal]);
+          
+          return chunks; // 状態保持
+        });
+      }, 100);
+
+    } else {
+      // --- 開始処理 ---
+      try {
+        const audioConstraints = selectedMic ? { deviceId: { exact: selectedMic } } : true;
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        setAudioChunks([]);
+        setCurrentAudioBlob(null);
+        setSysError(null);
+
+        await requestWakeLock();
+
+        if (recognitionRef.current) {
+          try { recognitionRef.current.start(); } catch(e) {}
         }
 
-        startBtn.addEventListener('click', async () => {
-            try {
-                const selectedDeviceId = micSelect.value;
-                const audioConstraints = selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true;
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) setAudioChunks(prev => [...prev, e.data]);
+        };
 
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-                
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                currentAudioBlob = null;
-                isRecordingActive = true;
-                isResetting = false;
+        mediaRecorder.start(1000);
+        setIsRecording(true);
 
-                await requestWakeLock();
+        startTimeRef.current = Date.now();
+        timerIntervalRef.current = setInterval(() => {
+          const diff = Date.now() - startTimeRef.current;
+          const totalSec = Math.floor(diff / 1000);
+          const h = Math.floor(totalSec / 3600).toString().padStart(2, '0');
+          const m = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
+          const s = (totalSec % 60).toString().padStart(2, '0');
+          setTimer(`${h}:${m}:${s}`);
+        }, 1000);
 
-                if (recognition) {
-                    finalTranscript = '';
-                    transcriptionDisplay.innerText = '';
-                    interimDisplay.innerText = '';
-                    transcriptionPlaceholder.style.display = 'block';
-                    transcriptionPlaceholder.innerText = '> LISTENING...';
-                    try { recognition.start(); } catch(e) { }
-                }
+      } catch (err) {
+        console.error(err);
+        setSysError(`ERR [${err.name}]: マイクの起動に失敗。他のアプリが使用中か権限がありません。`);
+      }
+    }
+  };
 
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContext.createMediaStreamSource(stream);
-                analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                source.connect(analyser);
-                const bufferLength = analyser.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-                canvas.width = canvas.offsetWidth;
-                canvas.height = canvas.offsetHeight;
+  const handleSave = async (blob, defaultExt, desc) => {
+    if (!blob) return;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    const defaultFilename = `LOG_${dateStr}${defaultExt}`;
 
-                const drawWaveform = () => {
-                    animationId = requestAnimationFrame(drawWaveform);
-                    analyser.getByteTimeDomainData(dataArray);
-
-                    canvasCtx.fillStyle = 'rgba(5, 0, 10, 0.2)';
-                    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-                    canvasCtx.lineWidth = 3;
-                    
-                    const hue = (Date.now() / 15) % 360;
-                    const neonColor = `hsl(${hue}, 100%, 60%)`;
-                    
-                    canvasCtx.strokeStyle = neonColor;
-                    canvasCtx.shadowBlur = 15;
-                    canvasCtx.shadowColor = neonColor;
-                    canvasCtx.beginPath();
-
-                    const sliceWidth = canvas.width * 1.0 / bufferLength;
-                    let x = 0;
-
-                    for (let i = 0; i < bufferLength; i++) {
-                        const v = dataArray[i] / 128.0;
-                        const y = v * canvas.height / 2;
-                        const amplifiedY = canvas.height/2 + (y - canvas.height/2) * 1.5;
-
-                        if (i === 0) canvasCtx.moveTo(x, amplifiedY);
-                        else canvasCtx.lineTo(x, amplifiedY);
-                        x += sliceWidth;
-                    }
-                    canvasCtx.lineTo(canvas.width, canvas.height / 2);
-                    canvasCtx.stroke();
-                    canvasCtx.shadowBlur = 0;
-                };
-                drawWaveform();
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) audioChunks.push(event.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    if (isResetting) return;
-                    currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-                    downloadArea.classList.remove('hidden');
-                };
-
-                mediaRecorder.start();
-                
-                startBtn.classList.add('hidden');
-                recordingControls.classList.remove('hidden');
-                stopBtn.classList.add('pulse-recording');
-                downloadArea.classList.add('hidden');
-                finalTranscriptionArea.classList.add('hidden');
-                micSelectContainer.classList.add('opacity-50', 'pointer-events-none');
-                
-                startTime = Date.now();
-                timerDisplay.classList.replace('text-neon-pink', 'text-neon-blue');
-                timerDisplay.classList.replace('glow-text-pink', 'glow-text-blue');
-                timerInterval = setInterval(updateTimer, 50);
-
-            } catch (err) {
-                console.error('Mic Access Error:', err);
-                
-                const errName = err.name || 'UnknownError';
-                const errMessage = err.message || '詳細不明';
-                
-                let errorMsg = `マイク機能の起動に失敗しました。\n\nエラー種別: ${errName}\n詳細: ${errMessage}\n\n`;
-                
-                if (errName === 'NotReadableError' || errName === 'TrackStartError' || errName === 'ConcurrentMicAccessError') {
-                    errorMsg += '💡 【考えられる原因】\n他のアプリ（電話、LINE通話、Zoom、音声認識アプリ等）がバックグラウンドでマイクを使用中・占有している可能性が高いです。\n\n→ 対策: バックグラウンドで開いている他のアプリを完全に終了させてから再度お試しください。';
-                } else if (errName === 'NotAllowedError') {
-                    errorMsg += '💡 【考えられる原因】\n設定で「許可」されているにも関わらずこのエラーが出る場合、ブラウザの一時的な不具合や、ページ読み込み時のキャッシュの問題の可能性があります。\n\n→ 対策: ブラウザ（SafariやChrome）のタブを一度すべて閉じ、ブラウザアプリ自体を終了（タスクキル）させてから開き直してみてください。';
-                } else if (errName === 'NotFoundError') {
-                    errorMsg += '💡 【考えられる原因】\nスマートフォンに有効なマイクが認識されていません。\n\n→ 対策: Bluetoothイヤホン等の接続を一度切るか、再接続して確認してください。';
-                } else {
-                    errorMsg += '💡 【対策】\nブラウザのタブを閉じて開き直すか、スマートフォンの再起動をお試しください。';
-                }
-                
-                alert(errorMsg);
-                
-                transcriptionPlaceholder.innerHTML = `> SYS_ERR: ${errName}<br><span class="text-xs text-red-400 mt-3 block font-sans text-left leading-relaxed bg-red-900/30 p-2 rounded border border-red-500/50">${errorMsg.replace(/\n/g, '<br>')}</span>`;
-                transcriptionPlaceholder.classList.replace('text-neon-blue', 'text-red-500');
-                transcriptionPlaceholder.style.display = 'block';
-            }
+    let saved = false;
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: defaultFilename,
+          types: [{ description: desc, accept: { '*/*': [defaultExt] } }],
         });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        saved = true;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+    
+    if (!saved) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = defaultFilename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
 
-        function stopAllProcesses(isReset) {
-            isRecordingActive = false;
-            isResetting = isReset;
-            
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            }
-
-            if (recognition) {
-                try { recognition.stop(); } catch(e){}
-            }
-
-            if (animationId) cancelAnimationFrame(animationId);
-            if (audioContext) audioContext.close();
-            drawFlatLine();
-            releaseWakeLock();
-            clearInterval(timerInterval);
-            
-            micSelectContainer.classList.remove('opacity-50', 'pointer-events-none');
-
-            timerDisplay.classList.replace('text-neon-blue', 'text-neon-pink');
-            timerDisplay.classList.replace('glow-text-blue', 'glow-text-pink');
-            
-            if (!isReset) {
-                timerDisplay.textContent = timerDisplay.textContent.replace(' ', ':');
-            } else {
-                timerDisplay.textContent = '00:00';
-                currentAudioBlob = null;
-                audioChunks = [];
-                finalTranscript = '';
-                transcriptionDisplay.innerText = '';
-                interimDisplay.innerText = '';
-                transcriptionPlaceholder.style.display = 'block';
-                transcriptionPlaceholder.innerText = '> WAITING_FOR_VOICE_INPUT...';
-            }
-        }
-
-        stopBtn.addEventListener('click', () => {
-            stopAllProcesses(false);
-            
-            recordingControls.classList.add('hidden');
-            stopBtn.classList.remove('pulse-recording');
-            startBtn.classList.remove('hidden');
-            startBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-5 h-5"></i> 録音を再開`;
-            lucide.createIcons();
-            
-            if(interimDisplay.innerText) {
-                finalTranscript += interimDisplay.innerText + '\n';
-                transcriptionDisplay.innerText = finalTranscript;
-                interimDisplay.innerText = '';
-            }
-
-            finalTranscriptionInput.value = finalTranscript;
-            finalTranscriptionArea.classList.remove('hidden');
-        });
-
-        resetBtn.addEventListener('click', () => {
-            stopAllProcesses(true);
-            
-            recordingControls.classList.add('hidden');
-            stopBtn.classList.remove('pulse-recording');
-            startBtn.classList.remove('hidden');
-            startBtn.innerHTML = `<i data-lucide="power" class="w-5 h-5"></i> 録音開始`;
-            lucide.createIcons();
-            downloadArea.classList.add('hidden');
-            finalTranscriptionArea.classList.add('hidden');
-        });
-
-        async function handleSave(blob, defaultExt, desc, acceptObj, btnElement, successHtml, originHtml) {
-            if (!blob) return;
-            const now = new Date();
-            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-            const defaultFilename = `LOG_${dateStr}${defaultExt}`;
-
-            let saved = false;
-
-            if (window.showSaveFilePicker) {
-                try {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: defaultFilename,
-                        types: [{ description: desc, accept: acceptObj }],
-                    });
-                    const writable = await handle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-                    saved = true;
-                    
-                    btnElement.innerHTML = successHtml;
-                    btnElement.classList.add('bg-neon-green', 'text-black', 'border-neon-green');
-                    btnElement.classList.remove('bg-transparent', 'text-neon-green', 'text-neon-blue', 'border-neon-blue');
-                    lucide.createIcons();
-                    setTimeout(() => {
-                        btnElement.innerHTML = originHtml;
-                        btnElement.classList.remove('bg-neon-green', 'text-black');
-                        btnElement.classList.add('bg-transparent');
-                        if(defaultExt === '.mp3') btnElement.classList.add('text-neon-green');
-                        else btnElement.classList.add('text-neon-blue', 'border-neon-blue');
-                        lucide.createIcons();
-                    }, 3000);
-                } catch (err) {
-                    if (err.name === 'AbortError') return;
-                    console.warn('保存ダイアログの表示が制限されています。通常のダウンロードに切り替えます。', err);
-                }
-            }
-            
-            if (!saved) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = defaultFilename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 100);
-            }
-        }
-
-        saveBtn.addEventListener('click', () => {
-            handleSave(currentAudioBlob, '.mp3', 'MP3音声データ', { 'audio/mp3': ['.mp3'] }, saveBtn, `<i data-lucide="check" class="w-4 h-4"></i> 保存完了`, `<i data-lucide="music" class="w-4 h-4"></i> MP3保存`);
-        });
-
-        saveTextBtn.addEventListener('click', () => {
-            const textToSave = finalTranscriptionInput.value || "文字起こしデータがありません。";
-            const textBlob = new Blob([textToSave], { type: 'text/plain' });
-            handleSave(textBlob, '.txt', 'テキストデータ', { 'text/plain': ['.txt'] }, saveTextBtn, `<i data-lucide="check" class="w-4 h-4"></i> 保存完了`, `<i data-lucide="file-text" class="w-4 h-4"></i> テキスト保存`);
-        });
-
-        const promptText = `アップロードした音声データ（または文字起こしテキスト）から、Wordにそのまま貼り付けられる形式でビジネス議事録を作成してください。
-Markdownの記号（**や#など）は一切使わず、自然なテキストで出力してください。
-以下のフォーマットに厳密に従い、内容から情報を抽出して空欄を埋めてください。
+  const copyPrompt = () => {
+    const promptText = `アップロードした音声データ（または文字起こしテキスト）から、Wordに貼り付けられる形式でビジネス議事録を作成せよ。
+Markdown記号は使わず、自然なテキストで出力すること。
+以下のフォーマットに厳密に従い、内容から情報を抽出して空欄を埋めよ。
 
 【会議名】議事録
 
@@ -714,7 +331,6 @@ Markdownの記号（**や#など）は一切使わず、自然なテキストで
 日時：
 場所・形式：
 参加者：
-欠席者：
 作成者：
 
 2. 目的・アジェンダ
@@ -722,49 +338,332 @@ Markdownの記号（**や#など）は一切使わず、自然なテキストで
 アジェンダ：
 
 3. 決定事項サマリー
-・（決定事項を1文で簡潔に記載）
+・（決定事項を簡潔に記載）
 
 4. 議題ごとの詳細
 議題1：
 結論：
-経緯・意見：（誰がどのような意見を出したか、決定に至った理由や懸念点など）
-議題2：
-結論：
 経緯・意見：
 
 5. 保留・未決定事項
-・（今回決まらず、次回以降に持ち越しとなった事項を記載）
+・（持ち越しとなった事項）
 
 6. Next Action（タスク）
-・[担当者名] ｜ [期限] ｜ [タスク内容]
+・[担当者名] ｜ [期限] ｜ [タスク内容]`;
 
-7. 次回予定
-日時：
-場所：
-議題：`;
+    const textarea = document.createElement('textarea');
+    textarea.value = promptText;
+    document.body.appendChild(textarea);
+    textarea.select();
+    
+    try {
+      document.execCommand('copy');
+      alert("AI連携プロンプトをクリップボードにコピーしました！ NotebookLMを開きます。");
+      setTimeout(() => {
+        window.open('https://notebooklm.google.com/', '_blank');
+      }, 1000);
+    } catch (err) {
+      alert("コピーに失敗しました。");
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  };
 
-        const actionBtn = document.getElementById('actionBtn');
-        const msg = document.getElementById('successMsg');
+  const renderStars = (count) => {
+    const stars = [];
+    for (let i = 0; i < count; i++) {
+      stars.push(<span key={i} className="text-red-600 text-[8px] sm:text-[10px] leading-none" style={{ textShadow: '0 0 2px rgba(255,0,0,0.5)' }}>★</span>);
+    }
+    return <div className="flex flex-wrap justify-center items-center w-4 h-4 sm:w-6 sm:h-6 leading-none">{stars}</div>;
+  };
 
-        actionBtn.addEventListener('click', () => {
-            const textarea = document.createElement('textarea');
-            textarea.value = promptText;
-            document.body.appendChild(textarea);
-            textarea.select();
+  return (
+    <div className="min-h-screen bg-zinc-900 flex flex-col items-center justify-center p-4 select-none font-mono overflow-hidden">
+      {/* 背景 */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#27272a_0%,_#000000_100%)] pointer-events-none"></div>
+
+      {isAppBrowser && (
+        <div className="absolute top-0 w-full bg-red-600 text-white text-xs p-2 text-center font-bold z-50">
+          ⚠️ アプリ内ブラウザではマイクが使えません。SafariやChromeで開き直してください。
+        </div>
+      )}
+
+      {/* --- 1. 起動画面 --- */}
+      <AnimatePresence>
+        {appState === 'boot' && (
+          <motion.div 
+            key="boot"
+            exit={{ opacity: 0, scale: 1.2, filter: 'blur(10px)' }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="absolute inset-0 z-50 bg-[#111] flex flex-col items-center justify-center"
+          >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center">
+              
+              {/* ホイポイカプセル画像 / フォールバックロゴ */}
+              <div className="w-40 h-40 sm:w-56 sm:h-56 mb-8 relative flex justify-center items-center">
+                <img 
+                  src={APP_ICON_URL} 
+                  alt="Hoi Poi Capsule" 
+                  className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] rounded-2xl"
+                  onError={(e) => {
+                    // 画像が読み込めない環境（Canvasプレビューなど）用のフォールバック
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white flex-col items-center justify-center relative">
+                  <span className="text-white font-black text-3xl sm:text-4xl absolute -top-4 bg-[#111] px-2">C</span>
+                  <span className="text-white font-black text-3xl sm:text-4xl absolute -bottom-4 bg-[#111] px-2">C</span>
+                  <span className="text-white font-bold text-xs sm:text-sm tracking-widest text-center">CAPSULE<br/>CORP.</span>
+                </div>
+              </div>
+
+              <div className="w-64 sm:w-80 h-3 bg-zinc-800 rounded-full overflow-hidden mb-4 border border-zinc-700">
+                <motion.div className="h-full bg-[#39ff14] shadow-[0_0_10px_#39ff14]" style={{ width: `${bootProgress}%` }} />
+              </div>
+              <p className="text-[#39ff14] text-xs sm:text-sm tracking-widest font-bold drop-shadow-[0_0_5px_#39ff14]">
+                {bootText} {bootProgress}%
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- 2. メインコンソール（レーダー ＋ モジュール群） --- */}
+      {appState === 'active' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="relative flex flex-col lg:flex-row items-center justify-center gap-8 w-full max-w-6xl z-10 pt-8"
+        >
+          
+          {/* 左側 / 上部：ドラゴンレーダー本体 */}
+          <div className="relative shrink-0 mt-8 lg:mt-0">
+            {/* 物理ボタン（スイッチ） */}
+            <div className="absolute -top-6 sm:-top-8 left-1/2 -translate-x-1/2 w-16 sm:w-24 h-12 sm:h-16 flex flex-col items-center z-0">
+              <div className="w-full h-4 sm:h-6 bg-gradient-to-b from-zinc-300 to-zinc-500 rounded-t-md border-x-2 border-t-2 border-zinc-600 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8)] mt-auto"></div>
+              <motion.button 
+                animate={{ y: isRecording ? 10 : 0 }} 
+                transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                onClick={toggleRecording}
+                className="absolute top-0 w-12 sm:w-16 h-8 sm:h-10 bg-gradient-to-b from-red-500 to-red-700 rounded-t-xl border-2 border-red-900 shadow-[0_4px_0_#7f1d1d,0_10px_10px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] cursor-pointer focus:outline-none group"
+              >
+                <div className="w-1/2 h-1 bg-red-900/40 mx-auto rounded-full mt-1"></div>
+                <div className="w-1/3 h-1 bg-red-900/40 mx-auto rounded-full mt-1"></div>
+                {/* ツールチップ */}
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-black text-white text-[10px] px-2 py-1 rounded transition whitespace-nowrap">REC ON/OFF</div>
+              </motion.button>
+            </div>
+
+            {/* 丸型筐体 */}
+            <div className="relative w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] rounded-full bg-gradient-to-br from-gray-50 via-gray-200 to-gray-400 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_4px_10px_rgba(255,255,255,1),inset_0_-10px_20px_rgba(0,0,0,0.3)] flex items-center justify-center border border-gray-300 z-10">
+              <div className="w-[88%] h-[88%] rounded-full bg-gradient-to-br from-gray-400 to-gray-100 shadow-[inset_0_4px_10px_rgba(0,0,0,0.4),0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center">
+                {/* グリーンのスクリーン */}
+                <div className="relative w-[92%] h-[92%] rounded-full bg-[#75b834] overflow-hidden border-4 border-zinc-800 shadow-[inset_0_0_20px_rgba(0,0,0,0.6)]">
+                  
+                  {/* グリッド */}
+                  <div className="absolute inset-0 opacity-60 pointer-events-none" style={{ backgroundImage: `linear-gradient(#3a6b18 2px, transparent 2px), linear-gradient(90deg, #3a6b18 2px, transparent 2px)`, backgroundSize: '30px 30px', backgroundPosition: 'center center' }}></div>
+                  {/* 中央マーカー */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[16px] border-transparent border-b-red-600 shadow-[0_0_5px_rgba(255,0,0,0.5)] z-20"></div>
+
+                  {/* 探知波紋 */}
+                  {isRecording && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                      {[0, 1, 2].map(i => (
+                        <motion.div key={i} className="absolute rounded-full border-[3px] border-[#a3e635] shadow-[0_0_15px_#a3e635]" initial={{ width: 0, height: 0, opacity: 0.8 }} animate={{ width: '100%', height: '100%', opacity: 0 }} transition={{ duration: 2, repeat: Infinity, delay: i * 0.6, ease: "easeOut" }} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ドラゴンボール */}
+                  <AnimatePresence>
+                    {signals.map(sig => (
+                      <motion.div
+                        key={sig.id}
+                        initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        style={{ left: `${sig.x}%`, top: `${sig.y}%` }}
+                        className="absolute w-6 h-6 sm:w-8 sm:h-8 -ml-3 -mt-3 sm:-ml-4 sm:-mt-4 rounded-full bg-gradient-to-br from-yellow-200 via-orange-400 to-orange-600 border border-orange-700 shadow-[0_0_10px_#f59e0b,inset_0_-2px_4px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center cursor-pointer z-30 group"
+                        whileHover={{ scale: 1.3, zIndex: 50 }} whileTap={{ scale: 0.9 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSave(sig.blob, '.mp3', 'MP3音声データ');
+                        }}
+                      >
+                        {renderStars(sig.stars)}
+                        <div className="absolute top-full mt-2 opacity-0 group-hover:opacity-100 bg-white border-2 border-zinc-800 text-zinc-800 text-[10px] px-2 py-1 rounded font-bold whitespace-nowrap shadow-lg pointer-events-none flex flex-col items-center">
+                          <span>{sig.date}</span>
+                          <span className="text-blue-600 mt-1">MP3保存</span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  
+                  {/* 反射エフェクト */}
+                  <div className="absolute top-[5%] left-[10%] w-[80%] h-[30%] bg-gradient-to-b from-white/40 to-transparent rounded-full blur-[2px] pointer-events-none z-40"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* 下部タイマーLCD */}
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-zinc-800 border-[3px] border-zinc-600 rounded-lg p-1.5 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-20">
+              <div className="bg-[#1a0505] border-2 border-zinc-900 rounded px-4 py-1 flex items-center justify-center shadow-[inset_0_0_10px_rgba(0,0,0,1)] min-w-[120px]">
+                <span className="font-mono text-xl sm:text-2xl tracking-widest text-red-500 drop-shadow-[0_0_5px_#ef4444] font-bold">{timer}</span>
+              </div>
+            </div>
             
-            try {
-                document.execCommand('copy');
-                msg.classList.remove('hidden');
-                setTimeout(() => {
-                    window.open('https://notebooklm.google.com/', '_blank');
-                    setTimeout(() => msg.classList.add('hidden'), 5000);
-                }, 1000);
-            } catch (err) {
-                alert('クリップボードへのアクセスが拒否されました。');
-            } finally {
-                document.body.removeChild(textarea);
-            }
-        });
-    </script>
-</body>
-</html>
+            {/* カプセルロゴ */}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-70 z-20 pointer-events-none">
+               <span className="text-zinc-600 font-bold text-[8px] tracking-[0.2em]">CAPSULE CORP.</span>
+            </div>
+          </div>
+
+          {/* 右側：拡張コンソール（メカニカルパネル風） */}
+          <div className="flex-1 w-full max-w-lg flex flex-col gap-4">
+            
+            {/* 入力ソース（マイク）＆システム情報パネル */}
+            <div className="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
+              <div className="flex justify-between items-center mb-3 border-b border-zinc-600 pb-2">
+                <h3 className="text-zinc-300 text-xs font-bold tracking-widest flex items-center gap-2"><Mic className="w-4 h-4"/> INPUT SOURCE</h3>
+                <button onClick={() => setShowHelp(true)} className="text-yellow-500 hover:text-yellow-300 text-[10px] flex items-center gap-1 transition">
+                  <Info className="w-3 h-3" /> 相手の声も拾うには(PC)
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <select 
+                  value={selectedMic} 
+                  onChange={(e) => setSelectedMic(e.target.value)}
+                  disabled={isRecording}
+                  className="flex-1 bg-zinc-900 border border-zinc-600 rounded p-2 text-xs text-[#39ff14] focus:outline-none focus:border-[#39ff14] disabled:opacity-50"
+                >
+                  <option value="">システム標準マイク</option>
+                  {micList.map(mic => <option key={mic.deviceId} value={mic.deviceId}>{mic.label || `マイク ${mic.deviceId.slice(0,5)}`}</option>)}
+                </select>
+                <button onClick={updateMicList} disabled={isRecording} className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-500 text-white px-3 rounded disabled:opacity-50 transition shadow-sm">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+              
+              {/* エラー表示領域 */}
+              {sysError && (
+                <div className="mt-3 bg-red-900/50 border border-red-500 text-red-300 text-[10px] p-2 rounded flex gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span className="leading-relaxed">{sysError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* トランスクリプション（通信ログ）モニター */}
+            <div className="bg-zinc-800 border-4 border-zinc-600 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden h-56 sm:h-64 relative">
+              {/* モニターベゼル上部 */}
+              <div className="bg-gradient-to-r from-zinc-700 via-zinc-600 to-zinc-700 p-1.5 flex justify-between items-center border-b-2 border-zinc-900">
+                <span className="text-zinc-300 text-[10px] font-bold tracking-widest pl-2">TRANSCRIPTION LOG</span>
+                <div className="flex gap-1.5 pr-2">
+                  <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 shadow-[0_0_5px_#ef4444] animate-pulse' : 'bg-red-900'}`}></div>
+                  <div className="w-2 h-2 rounded-full bg-green-500 opacity-50"></div>
+                </div>
+              </div>
+              
+              {/* CRTディスプレイ領域 */}
+              <div className="flex-1 bg-[#051505] p-3 overflow-y-auto relative font-sans text-sm leading-relaxed custom-scrollbar">
+                {/* CRT走査線エフェクト */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.03)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none z-10"></div>
+                
+                <div className="relative z-20 text-[#39ff14] text-shadow-crt">
+                  {!transcription && !interimText && (
+                    <div className="opacity-50 italic font-mono text-xs">
+                      {isRecording ? "> LISTENING TO SIGNAL..." : "> STANDBY. WAITING FOR RECORDING."}
+                    </div>
+                  )}
+                  <span className="whitespace-pre-wrap">{transcription}</span>
+                  <span className="font-bold opacity-80">{interimText}</span>
+                  <div ref={terminalEndRef} />
+                </div>
+              </div>
+            </div>
+
+            {/* データ抽出・同期（エクスポート）パネル */}
+            <div className="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-3 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+              <span className="text-zinc-400 text-[10px] font-bold tracking-widest mb-2 block">DATA EXTRACTION / AI SYNC</span>
+              <div className="grid grid-cols-3 gap-2">
+                <button 
+                  onClick={() => handleSave(currentAudioBlob, '.mp3', 'MP3音声データ')}
+                  disabled={!currentAudioBlob || isRecording}
+                  className="flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-yellow-500 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="text-[9px] font-bold">LATEST MP3</span>
+                </button>
+                <button 
+                  onClick={() => handleSave(new Blob([transcription || "No data"], {type: 'text/plain'}), '.txt', 'テキスト')}
+                  disabled={!transcription || isRecording}
+                  className="flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-blue-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition"
+                >
+                  <FileText className="w-5 h-5" />
+                  <span className="text-[9px] font-bold">TXT LOG</span>
+                </button>
+                <button 
+                  onClick={copyPrompt}
+                  disabled={!transcription || isRecording}
+                  className="flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-[#1a0505] border border-red-900 text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition relative overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-red-500/10 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                  <Cpu className="w-5 h-5 relative z-10" />
+                  <span className="text-[9px] font-bold relative z-10">AI SYNC</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </motion.div>
+      )}
+
+      {/* --- ヘルプモーダル（PC音声音録） --- */}
+      <AnimatePresence>
+        {showHelp && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowHelp(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-zinc-800 border-2 border-zinc-500 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-full max-w-lg overflow-hidden font-sans"
+            >
+              <div className="bg-zinc-700 p-3 border-b border-zinc-500 flex justify-between items-center">
+                <h3 className="text-white font-bold flex items-center gap-2 font-mono"><Info className="w-5 h-5 text-yellow-400"/> AUDIO MANUAL</h3>
+                <button onClick={() => setShowHelp(false)} className="text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-5 text-sm text-zinc-300 space-y-4 max-h-[70vh] overflow-y-auto">
+                <p className="text-yellow-400 font-bold border-b border-zinc-600 pb-2">PCから流れる音（ZOOMや動画の相手の声）を録音・文字起こしするには、Windowsの「ステレオミキサー」機能を使用します。</p>
+                <ol className="list-decimal list-inside space-y-3 pl-2">
+                  <li>タスクバー右下の「スピーカー」アイコンを右クリックし、<strong>「サウンドの設定」</strong>を開く。</li>
+                  <li>下部にある<strong>「サウンド コントロール パネル」</strong>（または「その他のサウンド設定」）をクリック。</li>
+                  <li>開いたウィンドウの<strong>「録音」</strong>タブを選択。</li>
+                  <li>空いている場所で右クリックし、<strong>「無効なデバイスの表示」</strong>にチェック。</li>
+                  <li>表示された<strong>「ステレオミキサー」</strong>を右クリックして<strong>「有効」</strong>にする。</li>
+                  <li>当アプリの INPUT SOURCE で<strong>「ステレオミキサー」</strong>を選択する。</li>
+                </ol>
+                <div className="bg-black/50 p-3 rounded border border-zinc-700 text-xs text-zinc-400 mt-4">
+                  ※Macをご利用の場合はステレオミキサー機能がないため、別途「BlackHole」などの仮想オーディオソフトのインストールが必要です。<br/>
+                  ※スマホ等、対応していないデバイスもあります。
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #051505; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1a4d1a; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #22c55e; }
+        .text-shadow-crt { text-shadow: 0 0 2px rgba(57, 255, 20, 0.4), 0 0 5px rgba(57, 255, 20, 0.2); }
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+      `}</style>
+    </div>
+  );
+}
