@@ -3,14 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Capsule Corp. OS "議事録用 録音APP"</title>
+    <title>Capsule Corp. OS "RADAR-PRO"</title>
     
-    <!-- Tailwind CSS -->
+    <!-- 【追加】通信待ちで真っ白にならないように、一番最初にベースの黒色を塗る -->
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: #18181b; /* 常に黒い背景 */
+            color: #39ff14; /* 常に緑色の文字 */
+            font-family: monospace;
+            width: 100%;
+            height: 100%;
+        }
+        #earlyLoader {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 14px;
+            letter-spacing: 2px;
+            z-index: 9999;
+        }
+    </style>
+
+    <!-- Tailwind CSS (デザインを読み込む。通信環境によっては数秒かかります) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <script>
+        // Tailwindのカラー設定
         tailwind.config = {
             theme: {
                 extend: {
@@ -25,10 +48,9 @@
             }
         }
     </script>
+
     <style>
         body {
-            background-color: #18181b; /* zinc-900 */
-            font-family: monospace;
             user-select: none;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
@@ -69,14 +91,14 @@
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* 画面トランジション */
-        .fade-out { opacity: 0; filter: blur(10px); transform: scale(1.2); transition: all 0.8s ease-in-out; }
+        .fade-out { opacity: 0; filter: blur(10px); transform: scale(1.2); transition: all 0.8s ease-in-out; pointer-events: none; }
         .fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
         @keyframes fadeInUp {
             0% { opacity: 0; transform: translateY(50px); }
             100% { opacity: 1; transform: translateY(0); }
         }
 
-        /* ボールの出現・ホバー */
+        /* ボールの出現 */
         .ball-enter { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes popIn {
             0% { transform: scale(0); opacity: 0; }
@@ -86,18 +108,21 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
 
+    <!-- CSSなどの読み込みが完了するまで表示される仮のローディング画面 -->
+    <div id="earlyLoader">CONNECTING TO SYSTEM...<br/><span style="font-size:10px; color:#555;">(Please wait)</span></div>
+
     <!-- 背景 -->
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_#27272a_0%,_#000000_100%)] pointer-events-none"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_#27272a_0%,_#000000_100%)] pointer-events-none z-0"></div>
 
     <!-- アプリ内ブラウザ警告 -->
     <div id="appBrowserWarning" class="hidden absolute top-0 w-full bg-red-600 text-white text-xs p-2 text-center font-bold z-50">
-        ⚠️ アプリ内ブラウザではマイクが使えません。SafariやChromeで開き直してください。
+        ⚠️ アプリ内ブラウザではマイクが使えない場合があります。<br>右上のメニュー等から「Safariで開く」または「ブラウザ(Chrome)で開く」を選んでください。
     </div>
 
     <!-- ========================================== -->
     <!-- 1. 起動画面 (Boot Screen) -->
     <!-- ========================================== -->
-    <div id="bootScreen" class="absolute inset-0 z-50 bg-[#111] flex flex-col items-center justify-center transition-all duration-800">
+    <div id="bootScreen" class="hidden absolute inset-0 z-50 bg-[#111] flex flex-col items-center justify-center transition-all duration-800">
         <div class="flex flex-col items-center">
             
             <!-- ホイポイカプセル画像 -->
@@ -105,7 +130,7 @@
                 <img 
                     id="bootImage"
                     alt="Hoi Poi Capsule" 
-                    className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] rounded-2xl"
+                    class="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] rounded-2xl"
                     onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';"
                 />
                 <!-- 画像が見つからない場合のフォールバック -->
@@ -139,7 +164,6 @@
                 <button id="recBtn" class="absolute top-0 w-12 sm:w-16 h-8 sm:h-10 bg-gradient-to-b from-red-500 to-red-700 rounded-t-xl border-2 border-red-900 shadow-[0_4px_0_#7f1d1d,0_10px_10px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] cursor-pointer focus:outline-none transition-transform duration-200 group">
                     <div class="w-1/2 h-1 bg-red-900/40 mx-auto rounded-full mt-1"></div>
                     <div class="w-1/3 h-1 bg-red-900/40 mx-auto rounded-full mt-1"></div>
-                    <div class="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-black text-white text-[10px] px-2 py-1 rounded transition whitespace-nowrap pointer-events-none">REC ON/OFF</div>
                 </button>
             </div>
 
@@ -187,14 +211,16 @@
         </div>
 
         <!-- 右側：モジュール群 -->
-        <div class="flex-1 w-full max-w-lg flex flex-col gap-4">
+        <div class="flex-1 w-full max-w-lg flex flex-col gap-4 mt-8 lg:mt-0">
             
             <!-- マイク選択パネル -->
             <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
                 <div class="flex justify-between items-center mb-3 border-b border-zinc-600 pb-2">
-                    <h3 class="text-zinc-300 text-xs font-bold tracking-widest flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4"></i> INPUT SOURCE</h3>
+                    <h3 class="text-zinc-300 text-xs font-bold tracking-widest flex items-center gap-2">
+                        <i data-lucide="mic" class="w-4 h-4"></i> INPUT SOURCE
+                    </h3>
                     <button id="openHelpBtn" class="text-yellow-500 hover:text-yellow-300 text-[10px] flex items-center gap-1 transition">
-                        <i data-lucide="info" class="w-3 h-3"></i> 相手の声も拾うには(PC)
+                        <i data-lucide="info" class="w-3 h-3"></i> 相手の声を拾うには
                     </button>
                 </div>
                 <div class="flex gap-2">
@@ -216,13 +242,13 @@
                 <div class="bg-gradient-to-r from-zinc-700 via-zinc-600 to-zinc-700 p-1.5 flex justify-between items-center border-b-2 border-zinc-900">
                     <span class="text-zinc-300 text-[10px] font-bold tracking-widest pl-2">TRANSCRIPTION LOG</span>
                     <div class="flex gap-1.5 pr-2">
-                        <div id="recIndicator" class="w-2 h-2 rounded-full bg-red-900"></div>
+                        <div id="recIndicator" class="w-2 h-2 rounded-full bg-red-900 transition-colors"></div>
                         <div class="w-2 h-2 rounded-full bg-green-500 opacity-50"></div>
                     </div>
                 </div>
                 <div id="terminalContainer" class="flex-1 bg-[#051505] p-3 overflow-y-auto relative font-sans text-sm leading-relaxed custom-scrollbar">
                     <div class="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.03)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none z-10"></div>
-                    <div class="relative z-20 text-[#39ff14] text-shadow-crt">
+                    <div class="relative z-20 text-[#39ff14] text-shadow-crt break-words">
                         <div id="transcriptionPlaceholder" class="opacity-50 italic font-mono text-xs">
                             &gt; STANDBY. WAITING FOR RECORDING.
                         </div>
@@ -260,7 +286,7 @@
                 <button id="closeHelpBtn" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="p-5 text-sm text-zinc-300 space-y-4 max-h-[70vh] overflow-y-auto">
-                <p class="text-yellow-400 font-bold border-b border-zinc-600 pb-2">PCから流れる音（ZOOMや動画の相手の声）を録音・文字起こしするには、Windowsの「ステレオミキサー」機能を使用します。</p>
+                <p class="text-yellow-400 font-bold border-b border-zinc-600 pb-2">PCから流れる音（ZOOM等の相手の声）を録音・文字起こしするには、Windowsの「ステレオミキサー」機能を使用します。</p>
                 <ol class="list-decimal list-inside space-y-3 pl-2">
                     <li>タスクバー右下の「スピーカー」アイコンを右クリックし、<strong>「サウンドの設定」</strong>を開く。</li>
                     <li>下部にある<strong>「サウンド コントロール パネル」</strong>（または「その他のサウンド設定」）をクリック。</li>
@@ -270,7 +296,7 @@
                     <li>当アプリの INPUT SOURCE で<strong>「ステレオミキサー」</strong>を選択する。</li>
                 </ol>
                 <div class="bg-black/50 p-3 rounded border border-zinc-700 text-xs text-zinc-400 mt-4">
-                    ※Macをご利用の場合はステレオミキサー機能がないため、別途「BlackHole」などの仮想オーディオソフトのインストールが必要です。<br/>
+                    ※Macをご利用の場合はステレオミキサー機能がないため、別途仮想オーディオソフトが必要です。<br/>
                     ※スマホ等、対応していないデバイスもあります。
                 </div>
             </div>
@@ -281,28 +307,29 @@
     <script>
         // ==========================================
         // ⚙️ 設定 (アイコンと画像)
-        // GitHubにアップロードしたホイポイカプセルの画像を安全に読み込むためエンコード
         // ==========================================
+        // スペースなどを含むURLでも問題が起きないようにエンコードします
         const APP_ICON_URL = encodeURI("./Gemini_Generated_Image_ot5vfqot5vfqot5v (1).jpg");
 
-        // アプリ内ブラウザ検知
-        if (/Line|Instagram|Twitter|FBAN|FBAV|FBIOS/i.test(navigator.userAgent)) {
-            document.getElementById('appBrowserWarning').classList.remove('hidden');
-        }
+        // UI アイコンの初期化とPWA設定などを安全に行う
+        try {
+            // アプリ内ブラウザ検知
+            if (/Line|Instagram|Twitter|FBAN|FBAV|FBIOS/i.test(navigator.userAgent)) {
+                document.getElementById('appBrowserWarning').classList.remove('hidden');
+            }
 
-        // アイコンとPWAメタの設定
-        document.getElementById('bootImage').src = APP_ICON_URL;
-        
-        let linkIcon = document.createElement('link');
-        linkIcon.rel = 'icon'; linkIcon.href = APP_ICON_URL;
-        document.head.appendChild(linkIcon);
+            // 画像の適用
+            document.getElementById('bootImage').src = APP_ICON_URL;
+            
+            // ファビコン・ホーム画面アイコンの適用
+            let linkIcon = document.createElement('link');
+            linkIcon.rel = 'icon'; linkIcon.href = APP_ICON_URL;
+            document.head.appendChild(linkIcon);
 
-        let appleIcon = document.createElement('link');
-        appleIcon.rel = 'apple-touch-icon'; appleIcon.href = APP_ICON_URL;
-        document.head.appendChild(appleIcon);
-
-        // UI アイコンの初期化
-        lucide.createIcons();
+            let appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon'; appleIcon.href = APP_ICON_URL;
+            document.head.appendChild(appleIcon);
+        } catch(e) { console.warn("Icon Setup skipped:", e); }
 
         // ==========================================
         // 状態管理変数
@@ -324,6 +351,17 @@
         // 起動（ブート）シーケンス
         // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
+            
+            // ロード完了時に早期ローダーを消し、Boot画面を表示
+            document.getElementById('earlyLoader').style.display = 'none';
+            const bootScreen = document.getElementById('bootScreen');
+            bootScreen.classList.remove('hidden');
+
+            // Lucideアイコンの描画（安全に実行）
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
             let bootProgress = 0;
             const texts = [
                 "CONNECTING TO SATELLITE...",
@@ -335,11 +373,10 @@
             
             const bootTextEl = document.getElementById('bootText');
             const bootBar = document.getElementById('bootBar');
-            const bootScreen = document.getElementById('bootScreen');
             const mainConsole = document.getElementById('mainConsole');
 
             const interval = setInterval(() => {
-                bootProgress += 2;
+                bootProgress += 3; // スピードアップ
                 if(bootProgress > 100) bootProgress = 100;
                 
                 bootBar.style.width = `${bootProgress}%`;
@@ -357,7 +394,7 @@
                             mainConsole.classList.add('fade-in-up');
                             initApp(); // システム初期化
                         }, 800);
-                    }, 1000);
+                    }, 500);
                 }
             }, 50);
         });
@@ -400,7 +437,7 @@
                 showError("WARNING: VOICE RECOGNITION NOT SUPPORTED IN THIS BROWSER.");
             }
 
-            // イベントリスナー
+            // イベントリスナー登録
             document.getElementById('recBtn').addEventListener('click', toggleRecording);
             document.getElementById('refreshMicBtn').addEventListener('click', updateMicList);
             document.getElementById('openHelpBtn').addEventListener('click', () => document.getElementById('helpModal').classList.remove('hidden'));
@@ -410,6 +447,7 @@
             document.getElementById('txtBtn').addEventListener('click', () => handleSave(new Blob([finalTranscript || "No data"], {type: 'text/plain'}), '.txt', 'テキストデータ'));
             document.getElementById('syncBtn').addEventListener('click', copyPrompt);
 
+            // スリープ防止の再取得
             document.addEventListener('visibilitychange', async () => {
                 if (wakeLock !== null && document.visibilityState === 'visible' && isRecording) {
                     await requestWakeLock();
@@ -690,5 +728,4 @@ Markdown記号は使わず、自然なテキストで出力すること。
         }
     </script>
 </body>
-
 </html>
