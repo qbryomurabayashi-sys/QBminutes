@@ -3,162 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Capsule Corp. OS "議事録 録音APP"</title>
+    <title>Capsule Corp. OS "RADAR-PRO"</title>
     
-    <!-- 【追加】通信待ちで真っ白にならないように、一番最初にベースの黒色を塗る -->
     <style>
         body, html {
-            margin: 0;
-            padding: 0;
-            background-color: #18181b; /* 常に黒い背景 */
-            color: #39ff14; /* 常に緑色の文字 */
-            font-family: monospace;
-            width: 100%;
-            height: 100%;
+            margin: 0; padding: 0; background-color: #18181b; color: #39ff14; font-family: monospace; width: 100%; height: 100%;
         }
         #earlyLoader {
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            font-size: 14px;
-            letter-spacing: 2px;
-            z-index: 9999;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 14px; letter-spacing: 2px; z-index: 9999;
         }
     </style>
 
-    <!-- Tailwind CSS (デザインを読み込む。通信環境によっては数秒かかります) -->
+    <!-- Tailwind CSS & Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <script>
-        // Tailwindのカラー設定
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        neon: { pink: '#ff2a85', blue: '#00f3ff', purple: '#bc13fe', green: '#39ff14', yellow: '#fcee0a' }
-                    },
-                    fontFamily: {
-                        mono: ['Courier New', 'monospace'],
-                        sans: ['Helvetica', 'Arial', 'sans-serif'],
-                    }
+                    colors: { neon: { pink: '#ff2a85', blue: '#00f3ff', purple: '#bc13fe', green: '#39ff14', yellow: '#fcee0a' } }
                 }
             }
         }
     </script>
 
     <style>
-        body {
-            user-select: none;
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* スクロールバー装飾 */
+        body { user-select: none; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #051505; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1a4d1a; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #22c55e; }
         
         .text-shadow-crt { text-shadow: 0 0 2px rgba(57, 255, 20, 0.4), 0 0 5px rgba(57, 255, 20, 0.2); }
-        
         @keyframes shimmer { 100% { transform: translateX(100%); } }
         .animate-shimmer { animation: shimmer 1.5s infinite; }
 
-        /* 波紋アニメーション */
-        .ripple {
-            position: absolute;
-            border-radius: 50%;
-            border: 3px solid #a3e635;
-            box-shadow: 0 0 15px #a3e635;
-            animation: rippleAnim 2s infinite ease-out;
-        }
-        .delay-0 { animation-delay: 0s; }
-        .delay-600 { animation-delay: 0.6s; }
-        .delay-1200 { animation-delay: 1.2s; }
-        @keyframes rippleAnim {
-            0% { width: 0; height: 0; opacity: 0.8; }
-            100% { width: 100%; height: 100%; opacity: 0; }
-        }
+        .ripple { position: absolute; border-radius: 50%; border: 3px solid #a3e635; box-shadow: 0 0 15px #a3e635; animation: rippleAnim 2s infinite ease-out; }
+        .delay-0 { animation-delay: 0s; } .delay-600 { animation-delay: 0.6s; } .delay-1200 { animation-delay: 1.2s; }
+        @keyframes rippleAnim { 0% { width: 0; height: 0; opacity: 0.8; } 100% { width: 100%; height: 100%; opacity: 0; } }
 
-        /* レーダー走査線アニメーション */
-        .radar-scan {
-            background: conic-gradient(from 0deg, transparent 70%, rgba(34, 197, 94, 0.1) 85%, rgba(34, 197, 94, 0.8) 100%);
-            animation: spin 3.5s linear infinite;
-        }
+        .radar-scan { background: conic-gradient(from 0deg, transparent 70%, rgba(34, 197, 94, 0.1) 85%, rgba(34, 197, 94, 0.8) 100%); animation: spin 3.5s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* 画面トランジション */
         .fade-out { opacity: 0; filter: blur(10px); transform: scale(1.2); transition: all 0.8s ease-in-out; pointer-events: none; }
         .fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
-        @keyframes fadeInUp {
-            0% { opacity: 0; transform: translateY(50px); }
-            100% { opacity: 1; transform: translateY(0); }
+        @keyframes fadeInUp { 0% { opacity: 0; transform: translateY(50px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        /* ボールの出現（中心を基準にスケール拡大） */
+        .ball-enter { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 
         }
 
-        /* ボールの出現 */
-        .ball-enter { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        @keyframes popIn {
-            0% { transform: scale(0); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+        /* 神龍フラッシュアニメーション */
+        @keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
 
-    <!-- CSSなどの読み込みが完了するまで表示される仮のローディング画面 -->
     <div id="earlyLoader">CONNECTING TO SYSTEM...<br/><span style="font-size:10px; color:#555;">(Please wait)</span></div>
-
-    <!-- 背景 -->
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_#27272a_0%,_#000000_100%)] pointer-events-none z-0"></div>
 
-    <!-- アプリ内ブラウザ警告 -->
     <div id="appBrowserWarning" class="hidden absolute top-0 w-full bg-red-600 text-white text-xs p-2 text-center font-bold z-50">
-        ⚠️ アプリ内ブラウザではマイクが使えない場合があります。<br>右上のメニュー等から「Safariで開く」または「ブラウザ(Chrome)で開く」を選んでください。
+        ⚠️ アプリ内ブラウザではマイクが使えません。SafariやChromeで開き直してください。
     </div>
 
-    <!-- ========================================== -->
-    <!-- 1. 起動画面 (Boot Screen) -->
-    <!-- ========================================== -->
+    <!-- 1. 起動画面 -->
     <div id="bootScreen" class="hidden absolute inset-0 z-50 bg-[#111] flex flex-col items-center justify-center transition-all duration-800">
         <div class="flex flex-col items-center">
-            
-            <!-- ホイポイカプセル画像 -->
             <div class="w-40 h-40 sm:w-56 sm:h-56 mb-8 relative flex justify-center items-center">
-                <img 
-                    id="bootImage"
-                    alt="Hoi Poi Capsule" 
-                    class="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] rounded-2xl"
-                    onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';"
-                />
-                <!-- 画像が見つからない場合のフォールバック -->
+                <img id="bootImage" src="./Gemini_Generated_Image_ot5vfqot5vfqot5v (1).jpg" alt="Hoi Poi Capsule" class="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] rounded-2xl" onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';" />
                 <div id="fallbackLogo" style="display:none;" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white flex-col items-center justify-center relative">
                     <span class="text-white font-black text-3xl sm:text-4xl absolute -top-4 bg-[#111] px-2">C</span>
                     <span class="text-white font-black text-3xl sm:text-4xl absolute -bottom-4 bg-[#111] px-2">C</span>
                     <span class="text-white font-bold text-xs sm:text-sm tracking-widest text-center">CAPSULE<br/>CORP.</span>
                 </div>
             </div>
-
-            <!-- プログレスバー -->
             <div class="w-64 sm:w-80 h-3 bg-zinc-800 rounded-full overflow-hidden mb-4 border border-zinc-700">
                 <div id="bootBar" class="h-full bg-[#39ff14] shadow-[0_0_10px_#39ff14]" style="width: 0%"></div>
             </div>
-            <p id="bootText" class="text-[#39ff14] text-xs sm:text-sm tracking-widest font-bold drop-shadow-[0_0_5px_#39ff14]">
-                INITIALIZING... 0%
-            </p>
+            <p id="bootText" class="text-[#39ff14] text-xs sm:text-sm tracking-widest font-bold drop-shadow-[0_0_5px_#39ff14]">INITIALIZING... 0%</p>
         </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- 2. メインコンソール -->
+    <!-- 🐉 神龍 (シェンロン) 演出用オーバーレイ -->
     <!-- ========================================== -->
+    <div id="shenronOverlay" class="hidden fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center opacity-0 transition-opacity duration-1000">
+        <!-- 画面全体を白く光らせるフラッシュ -->
+        <div id="shenronFlash" class="absolute inset-0 bg-white z-[101] opacity-0 pointer-events-none"></div>
+        <!-- 神龍の画像 -->
+        <!-- ★修正ポイント：HTML上で直接パスを指定して、確実に読み込むようにしました -->
+        <img id="shenronImg" src="./1000010043.jpg" class="max-h-[80vh] max-w-[90vw] object-contain transform scale-50 opacity-0 transition-all duration-2000 ease-out z-[102]" alt="Shenron" />
+        <!-- テキスト -->
+        <div id="shenronText" class="absolute bottom-20 text-yellow-400 font-bold text-2xl sm:text-4xl tracking-[0.5em] opacity-0 transition-opacity duration-1000 z-[103]" style="text-shadow: 0 0 10px rgba(250,204,21,0.8), 0 0 20px rgba(250,204,21,0.5);">
+            さあ願いを言え
+        </div>
+    </div>
+
+    <!-- 2. メインコンソール -->
     <div id="mainConsole" class="hidden relative flex flex-col lg:flex-row items-center justify-center gap-8 w-full max-w-6xl z-10 pt-8 opacity-0">
         
-        <!-- 左側：ドラゴンレーダー本体 -->
+        <!-- 左側：ドラゴンレーダー -->
         <div class="relative shrink-0 mt-8 lg:mt-0">
-            <!-- 物理スイッチ -->
             <div class="absolute -top-6 sm:-top-8 left-1/2 -translate-x-1/2 w-16 sm:w-24 h-12 sm:h-16 flex flex-col items-center z-0">
                 <div class="w-full h-4 sm:h-6 bg-gradient-to-b from-zinc-300 to-zinc-500 rounded-t-md border-x-2 border-t-2 border-zinc-600 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8)] mt-auto"></div>
                 <button id="recBtn" class="absolute top-0 w-12 sm:w-16 h-8 sm:h-10 bg-gradient-to-b from-red-500 to-red-700 rounded-t-xl border-2 border-red-900 shadow-[0_4px_0_#7f1d1d,0_10px_10px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] cursor-pointer focus:outline-none transition-transform duration-200 group">
@@ -167,44 +116,27 @@
                 </button>
             </div>
 
-            <!-- 丸型筐体 -->
             <div class="relative w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] rounded-full bg-gradient-to-br from-gray-50 via-gray-200 to-gray-400 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_4px_10px_rgba(255,255,255,1),inset_0_-10px_20px_rgba(0,0,0,0.3)] flex items-center justify-center border border-gray-300 z-10">
                 <div class="w-[88%] h-[88%] rounded-full bg-gradient-to-br from-gray-400 to-gray-100 shadow-[inset_0_4px_10px_rgba(0,0,0,0.4),0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center">
-                    
-                    <!-- レーダースクリーン -->
                     <div class="relative w-[92%] h-[92%] rounded-full bg-[#75b834] overflow-hidden border-4 border-zinc-800 shadow-[inset_0_0_20px_rgba(0,0,0,0.6)]">
-                        <!-- グリッド -->
                         <div class="absolute inset-0 opacity-60 pointer-events-none" style="background-image: linear-gradient(#3a6b18 2px, transparent 2px), linear-gradient(90deg, #3a6b18 2px, transparent 2px); background-size: 30px 30px; background-position: center center;"></div>
-                        
-                        <!-- 走査線 -->
                         <div class="absolute w-full h-full origin-center pointer-events-none z-10 radar-scan"></div>
-                        
-                        <!-- 中央マーカー -->
                         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[16px] border-transparent border-b-red-600 shadow-[0_0_5px_rgba(255,0,0,0.5)] z-20"></div>
 
-                        <!-- 波紋 (録音中のみ表示) -->
                         <div id="rippleContainer" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                            <div class="ripple delay-0"></div>
-                            <div class="ripple delay-600"></div>
-                            <div class="ripple delay-1200"></div>
+                            <div class="ripple delay-0"></div><div class="ripple delay-600"></div><div class="ripple delay-1200"></div>
                         </div>
-
-                        <!-- ドラゴンボール配置エリア -->
                         <div id="signalsContainer" class="absolute inset-0 z-30"></div>
-                        
-                        <!-- ガラス反射エフェクト -->
                         <div class="absolute top-[5%] left-[10%] w-[80%] h-[30%] bg-gradient-to-b from-white/40 to-transparent rounded-full blur-[2px] pointer-events-none z-40"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 下部タイマーLCD -->
             <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-zinc-800 border-[3px] border-zinc-600 rounded-lg p-1.5 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-20">
                 <div class="bg-[#1a0505] border-2 border-zinc-900 rounded px-4 py-1 flex items-center justify-center shadow-[inset_0_0_10px_rgba(0,0,0,1)] min-w-[120px]">
                     <span id="timerDisplay" class="font-mono text-xl sm:text-2xl tracking-widest text-red-500 drop-shadow-[0_0_5px_#ef4444] font-bold">00:00:00</span>
                 </div>
             </div>
-            
             <div class="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-70 z-20 pointer-events-none">
                  <span class="text-zinc-600 font-bold text-[8px] tracking-[0.2em]">CAPSULE CORP.</span>
             </div>
@@ -212,32 +144,23 @@
 
         <!-- 右側：モジュール群 -->
         <div class="flex-1 w-full max-w-lg flex flex-col gap-4 mt-8 lg:mt-0">
-            
-            <!-- マイク選択パネル -->
             <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
                 <div class="flex justify-between items-center mb-3 border-b border-zinc-600 pb-2">
-                    <h3 class="text-zinc-300 text-xs font-bold tracking-widest flex items-center gap-2">
-                        <i data-lucide="mic" class="w-4 h-4"></i> INPUT SOURCE
-                    </h3>
-                    <button id="openHelpBtn" class="text-yellow-500 hover:text-yellow-300 text-[10px] flex items-center gap-1 transition">
-                        <i data-lucide="info" class="w-3 h-3"></i> 相手の声を拾うには
-                    </button>
+                    <h3 class="text-zinc-300 text-xs font-bold tracking-widest flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4"></i> INPUT SOURCE</h3>
+                    <button id="openHelpBtn" class="text-yellow-500 hover:text-yellow-300 text-[10px] flex items-center gap-1 transition"><i data-lucide="info" class="w-3 h-3"></i> 相手の声を拾うには</button>
                 </div>
                 <div class="flex gap-2">
                     <select id="micSelect" class="flex-1 bg-zinc-900 border border-zinc-600 rounded p-2 text-xs text-[#39ff14] focus:outline-none focus:border-[#39ff14] disabled:opacity-50">
                         <option value="">システム標準マイク</option>
                     </select>
-                    <button id="refreshMicBtn" class="bg-zinc-700 hover:bg-zinc-600 border border-zinc-500 text-white px-3 rounded disabled:opacity-50 transition shadow-sm">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    </button>
+                    <button id="refreshMicBtn" class="bg-zinc-700 hover:bg-zinc-600 border border-zinc-500 text-white px-3 rounded disabled:opacity-50 transition shadow-sm"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
                 </div>
                 <div id="sysErrorArea" class="hidden mt-3 bg-red-900/50 border border-red-500 text-red-300 text-[10px] p-2 rounded flex gap-2">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
-                    <span id="sysErrorText" class="leading-relaxed"></span>
+                    <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i><span id="sysErrorText" class="leading-relaxed"></span>
                 </div>
             </div>
 
-            <!-- 文字起こしログ -->
+            <!-- トランスクリプション ログ -->
             <div class="bg-zinc-800 border-4 border-zinc-600 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden h-56 sm:h-64 relative">
                 <div class="bg-gradient-to-r from-zinc-700 via-zinc-600 to-zinc-700 p-1.5 flex justify-between items-center border-b-2 border-zinc-900">
                     <span class="text-zinc-300 text-[10px] font-bold tracking-widest pl-2">TRANSCRIPTION LOG</span>
@@ -249,9 +172,7 @@
                 <div id="terminalContainer" class="flex-1 bg-[#051505] p-3 overflow-y-auto relative font-sans text-sm leading-relaxed custom-scrollbar">
                     <div class="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.03)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none z-10"></div>
                     <div class="relative z-20 text-[#39ff14] text-shadow-crt break-words">
-                        <div id="transcriptionPlaceholder" class="opacity-50 italic font-mono text-xs">
-                            &gt; STANDBY. WAITING FOR RECORDING.
-                        </div>
+                        <div id="transcriptionPlaceholder" class="opacity-50 italic font-mono text-xs">&gt; STANDBY. WAITING FOR RECORDING.</div>
                         <span id="transcriptionDisplay" class="whitespace-pre-wrap"></span>
                         <span id="interimDisplay" class="font-bold opacity-80"></span>
                     </div>
@@ -261,17 +182,25 @@
             <!-- エクスポート -->
             <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-3 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
                 <span class="text-zinc-400 text-[10px] font-bold tracking-widest mb-2 block">DATA EXTRACTION / AI SYNC</span>
-                <div class="grid grid-cols-3 gap-2">
-                    <button id="downloadBtn" disabled class="flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-yellow-500 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition">
-                        <i data-lucide="download" class="w-5 h-5"></i><span class="text-[9px] font-bold">LATEST MP3</span>
-                    </button>
-                    <button id="txtBtn" disabled class="flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-blue-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition">
-                        <i data-lucide="file-text" class="w-5 h-5"></i><span class="text-[9px] font-bold">TXT LOG</span>
-                    </button>
-                    <button id="syncBtn" disabled class="flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-[#1a0505] border border-red-900 text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition relative overflow-hidden group">
-                        <div class="absolute inset-0 bg-red-500/10 -translate-x-full group-hover:animate-shimmer"></div>
-                        <i data-lucide="cpu" class="w-5 h-5 relative z-10"></i><span class="text-[9px] font-bold relative z-10">AI SYNC</span>
-                    </button>
+                <div class="flex flex-col gap-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="downloadBtn" disabled class="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-yellow-500 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition">
+                            <i data-lucide="download" class="w-4 h-4"></i><span class="text-[10px] font-bold">LATEST MP3</span>
+                        </button>
+                        <button id="txtBtn" disabled class="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-blue-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition">
+                            <i data-lucide="file-text" class="w-4 h-4"></i><span class="text-[10px] font-bold">TXT LOG</span>
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="promptSelect" class="flex-1 bg-zinc-900 border border-zinc-600 text-zinc-300 text-[10px] sm:text-xs rounded p-2 focus:outline-none focus:border-red-500 transition cursor-pointer appearance-none">
+                            <option value="meeting">📝 標準：ビジネス議事録</option>
+                            <option value="interview">🗣️ 面談報告シート</option>
+                        </select>
+                        <button id="syncBtn" disabled class="flex items-center justify-center gap-1 bg-zinc-900 hover:bg-[#1a0505] border border-red-900 text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition relative overflow-hidden group w-20 sm:w-24">
+                            <div class="absolute inset-0 bg-red-500/10 -translate-x-full group-hover:animate-shimmer"></div>
+                            <i data-lucide="cpu" class="w-4 h-4 relative z-10"></i><span class="text-[10px] font-bold relative z-10">SYNC</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -295,94 +224,43 @@
                     <li>表示された<strong>「ステレオミキサー」</strong>を右クリックして<strong>「有効」</strong>にする。</li>
                     <li>当アプリの INPUT SOURCE で<strong>「ステレオミキサー」</strong>を選択する。</li>
                 </ol>
-                <div class="bg-black/50 p-3 rounded border border-zinc-700 text-xs text-zinc-400 mt-4">
-                    ※Macをご利用の場合はステレオミキサー機能がないため、別途仮想オーディオソフトが必要です。<br/>
-                    ※スマホ等、対応していないデバイスもあります。
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- スクリプト制御 -->
     <script>
-        // ==========================================
-        // ⚙️ 設定 (アイコンと画像)
-        // ==========================================
-        // スペースなどを含むURLでも問題が起きないようにエンコードします
         const APP_ICON_URL = encodeURI("./Gemini_Generated_Image_ot5vfqot5vfqot5v (1).jpg");
 
-        // UI アイコンの初期化とPWA設定などを安全に行う
         try {
-            // アプリ内ブラウザ検知
             if (/Line|Instagram|Twitter|FBAN|FBAV|FBIOS/i.test(navigator.userAgent)) {
                 document.getElementById('appBrowserWarning').classList.remove('hidden');
             }
-
-            // 画像の適用
-            document.getElementById('bootImage').src = APP_ICON_URL;
             
-            // ファビコン・ホーム画面アイコンの適用
-            let linkIcon = document.createElement('link');
-            linkIcon.rel = 'icon'; linkIcon.href = APP_ICON_URL;
+            // アイコン設定
+            let linkIcon = document.createElement('link'); linkIcon.rel = 'icon'; linkIcon.href = APP_ICON_URL;
             document.head.appendChild(linkIcon);
-
-            let appleIcon = document.createElement('link');
-            appleIcon.rel = 'apple-touch-icon'; appleIcon.href = APP_ICON_URL;
+            let appleIcon = document.createElement('link'); appleIcon.rel = 'apple-touch-icon'; appleIcon.href = APP_ICON_URL;
             document.head.appendChild(appleIcon);
         } catch(e) { console.warn("Icon Setup skipped:", e); }
 
-        // ==========================================
-        // 状態管理変数
-        // ==========================================
         let isRecording = false;
         let signals = [];
-        let timerInterval;
-        let startTime;
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let currentAudioBlob = null;
-        
-        let finalTranscript = '';
-        let interimTranscript = '';
-        let recognition = null;
-        let wakeLock = null;
+        let timerInterval, startTime, mediaRecorder = null, audioChunks = [], currentAudioBlob = null;
+        let finalTranscript = '', interimTranscript = '', recognition = null, wakeLock = null;
 
-        // ==========================================
-        // 起動（ブート）シーケンス
-        // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
-            
-            // ロード完了時に早期ローダーを消し、Boot画面を表示
             document.getElementById('earlyLoader').style.display = 'none';
             const bootScreen = document.getElementById('bootScreen');
             bootScreen.classList.remove('hidden');
-
-            // Lucideアイコンの描画（安全に実行）
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
 
             let bootProgress = 0;
-            const texts = [
-                "CONNECTING TO SATELLITE...",
-                "AUTHENTICATING CAPSULE CORP. ID...",
-                "CALIBRATING RADAR WAVES...",
-                "INITIALIZING SPEECH RECOGNITION...",
-                "SYSTEM READY."
-            ];
-            
-            const bootTextEl = document.getElementById('bootText');
-            const bootBar = document.getElementById('bootBar');
-            const mainConsole = document.getElementById('mainConsole');
-
+            const texts = ["CONNECTING TO SATELLITE...", "AUTHENTICATING CAPSULE CORP. ID...", "CALIBRATING RADAR WAVES...", "INITIALIZING SPEECH RECOGNITION...", "SYSTEM READY."];
             const interval = setInterval(() => {
-                bootProgress += 3; // スピードアップ
+                bootProgress += 4;
                 if(bootProgress > 100) bootProgress = 100;
-                
-                bootBar.style.width = `${bootProgress}%`;
-                
-                const textIdx = Math.floor((bootProgress / 100) * (texts.length - 1));
-                bootTextEl.innerText = `${texts[textIdx]} ${bootProgress}%`;
+                document.getElementById('bootBar').style.width = `${bootProgress}%`;
+                document.getElementById('bootText').innerText = `${texts[Math.floor((bootProgress/100)*(texts.length-1))]} ${bootProgress}%`;
 
                 if (bootProgress >= 100) {
                     clearInterval(interval);
@@ -390,54 +268,37 @@
                         bootScreen.classList.add('fade-out');
                         setTimeout(() => {
                             bootScreen.style.display = 'none';
-                            mainConsole.classList.remove('hidden');
-                            mainConsole.classList.add('fade-in-up');
-                            initApp(); // システム初期化
+                            document.getElementById('mainConsole').classList.remove('hidden');
+                            document.getElementById('mainConsole').classList.add('fade-in-up');
+                            initApp();
                         }, 800);
-                    }, 500);
+                    }, 300);
                 }
-            }, 50);
+            }, 40);
         });
 
-        // ==========================================
-        // アプリケーション初期化
-        // ==========================================
         function initApp() {
             updateMicList();
-
-            // 音声認識の準備
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (SpeechRecognition) {
                 recognition = new SpeechRecognition();
-                recognition.lang = 'ja-JP';
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                
+                recognition.lang = 'ja-JP'; recognition.continuous = true; recognition.interimResults = true;
                 recognition.onresult = (event) => {
-                    let interim = '';
-                    let final = '';
+                    let interim = '', final = '';
+                    const currentTime = document.getElementById('timerDisplay').innerText;
                     for (let i = event.resultIndex; i < event.results.length; i++) {
-                        if (event.results[i].isFinal) {
-                            final += event.results[i][0].transcript + '\n';
-                        } else {
-                            interim += event.results[i][0].transcript;
-                        }
+                        if (event.results[i].isFinal) final += `[${currentTime}] ${event.results[i][0].transcript}\n`;
+                        else interim += event.results[i][0].transcript;
                     }
                     if (final) finalTranscript += final;
                     interimTranscript = interim;
                     updateTranscriptionUI();
                 };
-
-                recognition.onend = () => {
-                    if (isRecording) {
-                        try { recognition.start(); } catch (e) {}
-                    }
-                };
+                recognition.onend = () => { if (isRecording) { try { recognition.start(); } catch (e) {} } };
             } else {
-                showError("WARNING: VOICE RECOGNITION NOT SUPPORTED IN THIS BROWSER.");
+                showError("WARNING: VOICE RECOGNITION NOT SUPPORTED.");
             }
 
-            // イベントリスナー登録
             document.getElementById('recBtn').addEventListener('click', toggleRecording);
             document.getElementById('refreshMicBtn').addEventListener('click', updateMicList);
             document.getElementById('openHelpBtn').addEventListener('click', () => document.getElementById('helpModal').classList.remove('hidden'));
@@ -447,287 +308,236 @@
             document.getElementById('txtBtn').addEventListener('click', () => handleSave(new Blob([finalTranscript || "No data"], {type: 'text/plain'}), '.txt', 'テキストデータ'));
             document.getElementById('syncBtn').addEventListener('click', copyPrompt);
 
-            // スリープ防止の再取得
             document.addEventListener('visibilitychange', async () => {
-                if (wakeLock !== null && document.visibilityState === 'visible' && isRecording) {
-                    await requestWakeLock();
-                }
+                if (wakeLock !== null && document.visibilityState === 'visible' && isRecording) await requestWakeLock();
             });
         }
 
-        // ==========================================
-        // マイク・デバイス関連
-        // ==========================================
         async function updateMicList() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => track.stop());
+                stream.getTracks().forEach(t => t.stop());
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                const audioInputs = devices.filter(device => device.kind === 'audioinput');
-                
+                const audioInputs = devices.filter(d => d.kind === 'audioinput');
                 const select = document.getElementById('micSelect');
                 select.innerHTML = '<option value="">システム標準マイク</option>';
-                audioInputs.forEach((device, i) => {
-                    const opt = document.createElement('option');
-                    opt.value = device.deviceId;
-                    opt.text = device.label || `マイク ${i + 1}`;
-                    select.appendChild(opt);
+                audioInputs.forEach((d, i) => {
+                    const opt = document.createElement('option'); opt.value = d.deviceId; opt.text = d.label || `マイク ${i + 1}`; select.appendChild(opt);
                 });
                 document.getElementById('sysErrorArea').classList.add('hidden');
-            } catch (err) {
-                showError("ERR: MIC ACCESS DENIED. CHECK PERMISSIONS.");
-            }
+            } catch (err) { showError("ERR: MIC ACCESS DENIED. CHECK PERMISSIONS."); }
         }
 
-        async function requestWakeLock() {
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
-        }
-        function releaseWakeLock() {
-            if (wakeLock) { wakeLock.release().then(() => wakeLock = null).catch(()=>{}); }
-        }
+        async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+        function releaseWakeLock() { if (wakeLock) { wakeLock.release().then(()=>wakeLock=null).catch(()=>{}); } }
+        function showError(msg) { document.getElementById('sysErrorArea').classList.remove('hidden'); document.getElementById('sysErrorText').innerText = msg; }
 
-        function showError(msg) {
-            document.getElementById('sysErrorArea').classList.remove('hidden');
-            document.getElementById('sysErrorText').innerText = msg;
-        }
-
-        // ==========================================
-        // 録音ロジック
-        // ==========================================
         async function toggleRecording() {
-            const recBtn = document.getElementById('recBtn');
-            const ripple = document.getElementById('rippleContainer');
-            const recIndicator = document.getElementById('recIndicator');
-            const micSelect = document.getElementById('micSelect');
+            const recBtn = document.getElementById('recBtn'), ripple = document.getElementById('rippleContainer');
+            const recIndicator = document.getElementById('recIndicator'), micSelect = document.getElementById('micSelect');
 
             if (isRecording) {
                 // --- 停止処理 ---
-                isRecording = false;
-                clearInterval(timerInterval);
-                releaseWakeLock();
-
-                recBtn.style.transform = 'translateY(0)';
-                ripple.classList.add('hidden');
-                recIndicator.classList.remove('shadow-[0_0_5px_#ef4444]', 'animate-pulse');
-                recIndicator.classList.replace('bg-red-500', 'bg-red-900');
+                isRecording = false; clearInterval(timerInterval); releaseWakeLock();
+                recBtn.style.transform = 'translateY(0)'; ripple.classList.add('hidden');
+                recIndicator.classList.remove('shadow-[0_0_5px_#ef4444]', 'animate-pulse'); recIndicator.classList.replace('bg-red-500', 'bg-red-900');
                 micSelect.disabled = false;
                 document.getElementById('transcriptionPlaceholder').innerText = "> STANDBY. WAITING FOR RECORDING.";
 
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                    mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop());
                 }
                 if (recognition) {
                     try { recognition.stop(); } catch(e){}
                     if (interimTranscript) {
-                        finalTranscript += interimTranscript + '\n';
-                        interimTranscript = '';
-                        updateTranscriptionUI();
+                        finalTranscript += `[${document.getElementById('timerDisplay').innerText}] ${interimTranscript}\n`;
+                        interimTranscript = ''; updateTranscriptionUI();
                     }
                 }
 
-                // データ生成とボール追加
                 setTimeout(() => {
                     currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-                    const maxRadius = 35;
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = Math.random() * maxRadius;
+
+                    // 重ならないように座標を決定
+                    let x, y, overlap = true, attempts = 0;
+                    while (overlap && attempts < 50) {
+                        const angle = Math.random() * Math.PI * 2, distance = Math.random() * 38;
+                        x = 50 + distance * Math.cos(angle); y = 50 + distance * Math.sin(angle);
+                        overlap = false;
+                        for (const sig of signals) {
+                            const dx = sig.x - x, dy = sig.y - y;
+                            if (Math.sqrt(dx * dx + dy * dy) < 12) { overlap = true; break; }
+                        }
+                        attempts++;
+                    }
+
                     const newSignal = {
-                        id: Date.now(),
-                        x: 50 + distance * Math.cos(angle),
-                        y: 50 + distance * Math.sin(angle),
-                        blob: currentAudioBlob,
-                        stars: (signals.length % 7) + 1,
-                        date: new Date().toLocaleTimeString('ja-JP', { hour12: false })
+                        id: Date.now(), x: x, y: y,
+                        blob: currentAudioBlob, stars: (signals.length % 7) + 1, date: new Date().toLocaleTimeString('ja-JP', { hour12: false })
                     };
                     signals.push(newSignal);
                     renderSignals();
                     updateButtonsState();
+
+                    // ドラゴンボールが7つ集まったら神龍を呼び出す
+                    if (signals.length === 7) {
+                        triggerShenron();
+                    }
                 }, 200);
 
             } else {
                 // --- 開始処理 ---
                 try {
                     const selectedMicId = micSelect.value;
-                    const constraints = selectedMicId ? { deviceId: { exact: selectedMicId } } : true;
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
-                    
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-                    currentAudioBlob = null;
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true });
+                    mediaRecorder = new MediaRecorder(stream); audioChunks = []; currentAudioBlob = null;
                     document.getElementById('sysErrorArea').classList.add('hidden');
-
                     await requestWakeLock();
 
-                    if (recognition) {
-                        try { recognition.start(); } catch(e){}
-                    }
-
-                    mediaRecorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) audioChunks.push(e.data);
-                    };
-
-                    mediaRecorder.start(1000);
-                    isRecording = true;
+                    if (recognition) { try { recognition.start(); } catch(e){} }
+                    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                    mediaRecorder.start(1000); isRecording = true;
                     
-                    // UI更新
-                    recBtn.style.transform = 'translateY(12px)';
-                    ripple.classList.remove('hidden');
-                    recIndicator.classList.add('shadow-[0_0_5px_#ef4444]', 'animate-pulse');
-                    recIndicator.classList.replace('bg-red-900', 'bg-red-500');
-                    micSelect.disabled = true;
-                    document.getElementById('transcriptionPlaceholder').innerText = "> LISTENING TO SIGNAL...";
+                    recBtn.style.transform = 'translateY(12px)'; ripple.classList.remove('hidden');
+                    recIndicator.classList.add('shadow-[0_0_5px_#ef4444]', 'animate-pulse'); recIndicator.classList.replace('bg-red-900', 'bg-red-500');
+                    micSelect.disabled = true; document.getElementById('transcriptionPlaceholder').innerText = "> LISTENING TO SIGNAL...";
                     updateButtonsState();
 
-                    // タイマー
                     startTime = Date.now();
                     timerInterval = setInterval(() => {
-                        const diff = Date.now() - startTime;
-                        const t = Math.floor(diff / 1000);
-                        const h = String(Math.floor(t / 3600)).padStart(2, '0');
-                        const m = String(Math.floor((t % 3600) / 60)).padStart(2, '0');
-                        const s = String(t % 60).padStart(2, '0');
+                        const t = Math.floor((Date.now() - startTime) / 1000);
+                        const h = String(Math.floor(t / 3600)).padStart(2, '0'), m = String(Math.floor((t % 3600) / 60)).padStart(2, '0'), s = String(t % 60).padStart(2, '0');
                         document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`;
                     }, 1000);
-
-                } catch (err) {
-                    console.error(err);
-                    showError(`ERR [${err.name}]: マイク起動失敗。権限を確認してください。`);
-                }
+                } catch (err) { showError(`ERR [${err.name}]: マイク起動失敗。`); }
             }
         }
 
         // ==========================================
-        // UI 更新・操作ロジック
+        // 🐉 神龍呼び出しアニメーション処理
         // ==========================================
+        function triggerShenron() {
+            const overlay = document.getElementById('shenronOverlay');
+            const flash = document.getElementById('shenronFlash');
+            const img = document.getElementById('shenronImg');
+            const text = document.getElementById('shenronText');
+
+            overlay.classList.remove('hidden');
+            
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                overlay.classList.add('opacity-100');
+                flash.style.animation = 'flashAnim 1.5s ease-out forwards';
+                
+                setTimeout(() => {
+                    img.classList.remove('scale-50', 'opacity-0');
+                    img.classList.add('scale-100', 'opacity-100');
+                }, 300);
+
+                setTimeout(() => {
+                    text.classList.remove('opacity-0');
+                    text.classList.add('opacity-100');
+                }, 1500);
+
+                // 6秒後に消える
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-100');
+                    overlay.classList.add('opacity-0');
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        img.classList.remove('scale-100', 'opacity-100'); img.classList.add('scale-50', 'opacity-0');
+                        text.classList.remove('opacity-100'); text.classList.add('opacity-0');
+                        flash.style.animation = '';
+                        
+                        // 願いを叶えたのでボールをリセットする
+                        signals = [];
+                        renderSignals();
+                        updateButtonsState();
+                    }, 1000);
+                }, 6000);
+            }, 100);
+        }
+
         function updateTranscriptionUI() {
             document.getElementById('transcriptionDisplay').innerText = finalTranscript;
             document.getElementById('interimDisplay').innerText = interimTranscript;
-            if (finalTranscript || interimTranscript) {
-                document.getElementById('transcriptionPlaceholder').style.display = 'none';
-            }
-            const container = document.getElementById('terminalContainer');
-            container.scrollTop = container.scrollHeight;
+            if (finalTranscript || interimTranscript) document.getElementById('transcriptionPlaceholder').style.display = 'none';
+            const container = document.getElementById('terminalContainer'); container.scrollTop = container.scrollHeight;
             updateButtonsState();
         }
 
         function updateButtonsState() {
-            const dBtn = document.getElementById('downloadBtn');
-            const tBtn = document.getElementById('txtBtn');
-            const sBtn = document.getElementById('syncBtn');
-            
-            dBtn.disabled = !currentAudioBlob || isRecording;
-            tBtn.disabled = !finalTranscript || isRecording;
-            sBtn.disabled = !finalTranscript || isRecording;
+            const dBtn = document.getElementById('downloadBtn'), tBtn = document.getElementById('txtBtn'), sBtn = document.getElementById('syncBtn');
+            dBtn.disabled = !currentAudioBlob || isRecording; tBtn.disabled = !finalTranscript || isRecording; sBtn.disabled = !finalTranscript || isRecording;
         }
 
         function renderSignals() {
-            const container = document.getElementById('signalsContainer');
-            container.innerHTML = '';
-            
+            const container = document.getElementById('signalsContainer'); container.innerHTML = '';
             signals.forEach(sig => {
                 const ball = document.createElement('div');
-                ball.className = "absolute w-6 h-6 sm:w-8 sm:h-8 -ml-3 -mt-3 sm:-ml-4 sm:-mt-4 rounded-full bg-gradient-to-br from-yellow-200 via-orange-400 to-orange-600 border border-orange-700 shadow-[0_0_10px_#f59e0b,inset_0_-2px_4px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center cursor-pointer z-30 group ball-enter";
-                ball.style.left = `${sig.x}%`;
-                ball.style.top = `${sig.y}%`;
+                ball.className = "absolute w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-yellow-200 via-orange-400 to-orange-600 border border-orange-700 shadow-[0_0_10px_#f59e0b,inset_0_-2px_4px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center cursor-pointer z-30 group ball-enter transform -translate-x-1/2 -translate-y-1/2";
+                ball.style.left = `${sig.x}%`; ball.style.top = `${sig.y}%`;
                 
-                let starsHTML = '<div class="flex flex-wrap justify-center items-center w-4 h-4 sm:w-6 sm:h-6 leading-none">';
-                for(let i=0; i<sig.stars; i++){
-                    starsHTML += `<span class="text-red-600 text-[8px] sm:text-[10px] leading-none" style="text-shadow: 0 0 2px rgba(255,0,0,0.5)">★</span>`;
+                let starsHTML = '<div class="absolute inset-0 flex flex-wrap justify-center content-center items-center gap-[1px] p-1">';
+                for(let i=0; i<sig.stars; i++){ 
+                    starsHTML += `<span class="text-red-600 text-[6px] sm:text-[8px] leading-none" style="text-shadow: 0 0 2px rgba(255,0,0,0.8)">★</span>`; 
                 }
                 starsHTML += '</div>';
 
-                const tooltip = `
-                    <div class="absolute top-full mt-2 opacity-0 group-hover:opacity-100 bg-white border-2 border-zinc-800 text-zinc-800 text-[10px] px-2 py-1 rounded font-bold whitespace-nowrap shadow-lg pointer-events-none flex flex-col items-center z-50 transition-opacity">
-                        <span>${sig.date}</span>
-                        <span class="text-blue-600 mt-1">MP3保存</span>
-                    </div>
-                `;
-                
+                const tooltip = `<div class="absolute top-full mt-2 opacity-0 group-hover:opacity-100 bg-white border-2 border-zinc-800 text-zinc-800 text-[10px] px-2 py-1 rounded font-bold whitespace-nowrap shadow-lg pointer-events-none flex flex-col items-center z-50 transition-opacity"><span>${sig.date}</span><span class="text-blue-600 mt-1">MP3保存</span></div>`;
                 ball.innerHTML = starsHTML + tooltip;
-                
-                ball.onclick = (e) => {
-                    e.stopPropagation();
-                    handleSave(sig.blob, '.mp3', 'MP3音声データ');
-                };
+                ball.onclick = (e) => { e.stopPropagation(); handleSave(sig.blob, '.mp3', 'MP3音声データ'); };
                 container.appendChild(ball);
             });
         }
 
         async function handleSave(blob, ext, desc) {
             if (!blob) return;
-            const now = new Date();
-            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-            const filename = `LOG_${dateStr}${ext}`;
-
+            const filename = `LOG_${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}${ext}`;
             if (window.showSaveFilePicker) {
                 try {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: filename,
-                        types: [{ description: desc, accept: { '*/*': [ext] } }],
-                    });
-                    const writable = await handle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-                    return;
-                } catch (e) {
-                    if (e.name === 'AbortError') return;
-                }
+                    const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: desc, accept: { '*/*': [ext] } }] });
+                    const writable = await handle.createWritable(); await writable.write(blob); await writable.close(); return;
+                } catch (e) { if (e.name === 'AbortError') return; }
             }
-            // Fallback
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = filename; a.click();
-            URL.revokeObjectURL(url);
+            const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
         }
 
         function copyPrompt() {
-            const promptText = `アップロードした音声データ（または文字起こしテキスト）から、Wordに貼り付けられる形式でビジネス議事録を作成せよ。
-Markdown記号は使わず、自然なテキストで出力すること。
-以下のフォーマットに厳密に従い、内容から情報を抽出して空欄を埋めよ。
-
+            const promptType = document.getElementById('promptSelect').value;
+            let promptText = promptType === 'meeting' ? 
+`アップロードした音声データ（またはタイムスタンプ付きの文字起こしテキスト）から、Wordに貼り付けられる形式でビジネス議事録を作成せよ。
+Markdown記号は使わず自然なテキストで出力すること。以下のフォーマットに厳密に従い、内容から情報を抽出して空欄を埋めよ。
 【会議名】議事録
-
-1. 基本情報
-日時：
-場所・形式：
-参加者：
-作成者：
-
+1. 基本情報 (日時/場所/参加者/作成者)
 2. 目的・アジェンダ
-会議の目的：
-アジェンダ：
-
 3. 決定事項サマリー
-・（決定事項を簡潔に記載）
-
-4. 議題ごとの詳細
-議題1：
-結論：
-経緯・意見：
-
+4. 議題ごとの詳細 (結論/経緯・意見)
 5. 保留・未決定事項
-・（持ち越しとなった事項）
+6. Next Action（タスク: 担当/期限/内容）` 
+: 
+`あなたは優秀なビジネスアシスタントです。アップロードされた面談のテキストファイルの内容を読み込み、以下のフォーマットに従って面談報告シートを作成してください。
+指示事項: 内容に忠実に簡潔に要約、推測不可、箇条書き活用
+## 面談報告シート
+**面談日時/参加者/目的**
+### 1. 主要な議題と内容
+### 2. 決定事項
+### 3. 次のアクション（Todo）
+### 4. 懸念事項・課題
+### 5. 特記事項・重要な発言`;
 
-6. Next Action（タスク）
-・[担当者名] ｜ [期限] ｜ [タスク内容]`;
-
-            const textarea = document.createElement('textarea');
-            textarea.value = promptText;
-            document.body.appendChild(textarea);
-            textarea.select();
+            const textarea = document.createElement('textarea'); textarea.value = promptText;
+            textarea.style.top = "0"; textarea.style.left = "0"; textarea.style.position = "fixed";
+            document.body.appendChild(textarea); textarea.select();
             try {
                 document.execCommand('copy');
-                alert("AI連携プロンプトをクリップボードにコピーしました！ NotebookLMを開きます。");
-                setTimeout(() => { window.open('https://notebooklm.google.com/', '_blank'); }, 1000);
-            } catch (err) {
-                alert("コピーに失敗しました。");
-            } finally {
-                document.body.removeChild(textarea);
-            }
+                alert("AI連携プロンプトをコピーしました！\n「OK」を押すとNotebookLMを開きます。");
+                const newWin = window.open('https://notebooklm.google.com/', '_blank');
+                if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+                    alert("【ポップアップがブロックされました】\nブラウザの設定でポップアップを許可するか、ご自身で「NotebookLM」を検索して開いてください。プロンプトのコピーは完了しています。");
+                }
+            } catch (err) { alert("コピーに失敗しました。"); } finally { document.body.removeChild(textarea); }
         }
     </script>
 </body>
-
 </html>
-
