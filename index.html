@@ -50,23 +50,23 @@
         .fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
         @keyframes fadeInUp { 0% { opacity: 0; transform: translateY(50px); } 100% { opacity: 1; transform: translateY(0); } }
 
-        /* ボールの出現（中心を基準にスケール拡大） */
         .ball-enter { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes popIn { 
             0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 
             100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 
         }
 
-        /* 神龍フラッシュアニメーション */
         @keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+<!-- ★スマホで上下が切れないように justify-start にし、上部パディング(pt-16)を追加 -->
+<body class="min-h-screen flex flex-col items-center justify-start lg:justify-center p-4 pt-16 relative">
 
     <div id="earlyLoader">CONNECTING TO SYSTEM...<br/><span style="font-size:10px; color:#555;">(Please wait)</span></div>
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_#27272a_0%,_#000000_100%)] pointer-events-none z-0"></div>
 
-    <div id="appBrowserWarning" class="hidden absolute top-0 w-full bg-red-600 text-white text-xs p-2 text-center font-bold z-50">
+    <!-- ★警告バナーがボタンに被らないよう fixed に変更 -->
+    <div id="appBrowserWarning" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-xs p-2 text-center font-bold z-[9999] shadow-md">
         ⚠️ アプリ内ブラウザではマイクが使えません。SafariやChromeで開き直してください。
     </div>
 
@@ -88,35 +88,31 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
     <!-- 🐉 神龍 (シェンロン) 演出用オーバーレイ -->
-    <!-- ========================================== -->
     <div id="shenronOverlay" class="hidden fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center opacity-0 transition-opacity duration-1000">
-        <!-- 画面全体を白く光らせるフラッシュ -->
         <div id="shenronFlash" class="absolute inset-0 bg-white z-[101] opacity-0 pointer-events-none"></div>
-        <!-- 神龍の画像 -->
-        <!-- ★新しいファイル名に更新しました -->
         <img id="shenronImg" src="./dragon-ball-dragon-ball-z-shenron-dragon-ball-wallpaper-preview.jpg" class="max-h-[80vh] max-w-[90vw] object-contain transform scale-50 opacity-0 transition-all duration-2000 ease-out z-[102]" alt="Shenron" />
-        <!-- テキスト -->
         <div id="shenronText" class="absolute bottom-20 text-yellow-400 font-bold text-2xl sm:text-4xl tracking-[0.5em] opacity-0 transition-opacity duration-1000 z-[103]" style="text-shadow: 0 0 10px rgba(250,204,21,0.8), 0 0 20px rgba(250,204,21,0.5);">
             さあ願いを言え
         </div>
     </div>
 
     <!-- 2. メインコンソール -->
-    <div id="mainConsole" class="hidden relative flex flex-col lg:flex-row items-center justify-center gap-8 w-full max-w-6xl z-10 pt-8 opacity-0">
+    <div id="mainConsole" class="hidden relative flex flex-col lg:flex-row items-center justify-center gap-8 w-full max-w-6xl z-10 opacity-0">
         
         <!-- 左側：ドラゴンレーダー -->
         <div class="relative shrink-0 mt-8 lg:mt-0">
-            <div class="absolute -top-6 sm:-top-8 left-1/2 -translate-x-1/2 w-16 sm:w-24 h-12 sm:h-16 flex flex-col items-center z-0">
-                <div class="w-full h-4 sm:h-6 bg-gradient-to-b from-zinc-300 to-zinc-500 rounded-t-md border-x-2 border-t-2 border-zinc-600 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8)] mt-auto"></div>
-                <button id="recBtn" class="absolute top-0 w-12 sm:w-16 h-8 sm:h-10 bg-gradient-to-b from-red-500 to-red-700 rounded-t-xl border-2 border-red-900 shadow-[0_4px_0_#7f1d1d,0_10px_10px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] cursor-pointer focus:outline-none transition-transform duration-200 group">
-                    <div class="w-1/2 h-1 bg-red-900/40 mx-auto rounded-full mt-1"></div>
-                    <div class="w-1/3 h-1 bg-red-900/40 mx-auto rounded-full mt-1"></div>
+            <!-- ★ スイッチ部分：スマホでも押しやすいように少し大きく、高く調整 -->
+            <div class="absolute -top-10 sm:-top-12 left-1/2 -translate-x-1/2 w-20 sm:w-24 h-16 flex flex-col items-center z-0">
+                <div class="w-full h-6 bg-gradient-to-b from-zinc-300 to-zinc-500 rounded-t-md border-x-2 border-t-2 border-zinc-600 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8)] mt-auto"></div>
+                <button id="recBtn" class="absolute top-0 w-16 h-12 bg-gradient-to-b from-red-500 to-red-700 rounded-t-xl border-2 border-red-900 shadow-[0_4px_0_#7f1d1d,0_10px_10px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] cursor-pointer focus:outline-none transition-transform duration-200 group">
+                    <div class="w-1/2 h-1.5 bg-red-900/40 mx-auto rounded-full mt-1.5"></div>
+                    <div class="w-1/3 h-1.5 bg-red-900/40 mx-auto rounded-full mt-1.5"></div>
                 </button>
             </div>
 
-            <div class="relative w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] rounded-full bg-gradient-to-br from-gray-50 via-gray-200 to-gray-400 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_4px_10px_rgba(255,255,255,1),inset_0_-10px_20px_rgba(0,0,0,0.3)] flex items-center justify-center border border-gray-300 z-10">
+            <!-- ★ レーダー筐体：スマホでは少し小さく(w-[280px])してはみ出しを防止 -->
+            <div class="relative w-[280px] h-[280px] sm:w-[400px] sm:h-[400px] rounded-full bg-gradient-to-br from-gray-50 via-gray-200 to-gray-400 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_4px_10px_rgba(255,255,255,1),inset_0_-10px_20px_rgba(0,0,0,0.3)] flex items-center justify-center border border-gray-300 z-10">
                 <div class="w-[88%] h-[88%] rounded-full bg-gradient-to-br from-gray-400 to-gray-100 shadow-[inset_0_4px_10px_rgba(0,0,0,0.4),0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center">
                     <div class="relative w-[92%] h-[92%] rounded-full bg-[#75b834] overflow-hidden border-4 border-zinc-800 shadow-[inset_0_0_20px_rgba(0,0,0,0.6)]">
                         <div class="absolute inset-0 opacity-60 pointer-events-none" style="background-image: linear-gradient(#3a6b18 2px, transparent 2px), linear-gradient(90deg, #3a6b18 2px, transparent 2px); background-size: 30px 30px; background-position: center center;"></div>
@@ -132,18 +128,18 @@
                 </div>
             </div>
 
-            <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-zinc-800 border-[3px] border-zinc-600 rounded-lg p-1.5 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-20">
+            <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 bg-zinc-800 border-[3px] border-zinc-600 rounded-lg p-1.5 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-20">
                 <div class="bg-[#1a0505] border-2 border-zinc-900 rounded px-4 py-1 flex items-center justify-center shadow-[inset_0_0_10px_rgba(0,0,0,1)] min-w-[120px]">
                     <span id="timerDisplay" class="font-mono text-xl sm:text-2xl tracking-widest text-red-500 drop-shadow-[0_0_5px_#ef4444] font-bold">00:00:00</span>
                 </div>
             </div>
-            <div class="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-70 z-20 pointer-events-none">
+            <div class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-70 z-20 pointer-events-none">
                  <span class="text-zinc-600 font-bold text-[8px] tracking-[0.2em]">CAPSULE CORP.</span>
             </div>
         </div>
 
         <!-- 右側：モジュール群 -->
-        <div class="flex-1 w-full max-w-lg flex flex-col gap-4 mt-8 lg:mt-0">
+        <div class="flex-1 w-full max-w-lg flex flex-col gap-4 mt-16 lg:mt-0">
             <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
                 <div class="flex justify-between items-center mb-3 border-b border-zinc-600 pb-2">
                     <h3 class="text-zinc-300 text-xs font-bold tracking-widest flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4"></i> INPUT SOURCE</h3>
@@ -180,7 +176,7 @@
             </div>
 
             <!-- エクスポート -->
-            <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-3 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+            <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-3 shadow-[0_10px_20px_rgba(0,0,0,0.5)] mb-8">
                 <span class="text-zinc-400 text-[10px] font-bold tracking-widest mb-2 block">DATA EXTRACTION / AI SYNC</span>
                 <div class="flex flex-col gap-2">
                     <div class="grid grid-cols-2 gap-2">
@@ -196,7 +192,7 @@
                             <option value="meeting">📝 標準：ビジネス議事録</option>
                             <option value="interview">🗣️ 面談報告シート</option>
                         </select>
-                        <button id="syncBtn" disabled class="flex items-center justify-center gap-1 bg-zinc-900 hover:bg-[#1a0505] border border-red-900 text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition relative overflow-hidden group w-20 sm:w-24">
+                        <button id="syncBtn" disabled class="flex items-center justify-center gap-1 bg-zinc-900 hover:bg-[#1a0505] border border-red-900 text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition relative overflow-hidden group px-4">
                             <div class="absolute inset-0 bg-red-500/10 -translate-x-full group-hover:animate-shimmer"></div>
                             <i data-lucide="cpu" class="w-4 h-4 relative z-10"></i><span class="text-[10px] font-bold relative z-10">SYNC</span>
                         </button>
@@ -230,7 +226,6 @@
 
     <script>
         const APP_ICON_URL = encodeURI("./Gemini_Generated_Image_ot5vfqot5vfqot5v (1).jpg");
-        // ★設定ファイル名を新しい神龍の画像に更新しました
         const SHENRON_IMG_URL = "dragon-ball-dragon-ball-z-shenron-dragon-ball-wallpaper-preview.jpg";
 
         try {
@@ -341,7 +336,9 @@
             if (isRecording) {
                 // --- 停止処理 ---
                 isRecording = false; clearInterval(timerInterval); releaseWakeLock();
-                recBtn.style.transform = 'translateY(0)'; ripple.classList.add('hidden');
+                // ★ スイッチを元の位置に戻す
+                recBtn.style.transform = 'translateY(0)'; 
+                ripple.classList.add('hidden');
                 recIndicator.classList.remove('shadow-[0_0_5px_#ef4444]', 'animate-pulse'); recIndicator.classList.replace('bg-red-500', 'bg-red-900');
                 micSelect.disabled = false;
                 document.getElementById('transcriptionPlaceholder').innerText = "> STANDBY. WAITING FOR RECORDING.";
@@ -400,7 +397,9 @@
                     mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
                     mediaRecorder.start(1000); isRecording = true;
                     
-                    recBtn.style.transform = 'translateY(12px)'; ripple.classList.remove('hidden');
+                    // ★ 録音中のスイッチの沈み込み量を調整（8px）
+                    recBtn.style.transform = 'translateY(8px)'; 
+                    ripple.classList.remove('hidden');
                     recIndicator.classList.add('shadow-[0_0_5px_#ef4444]', 'animate-pulse'); recIndicator.classList.replace('bg-red-900', 'bg-red-500');
                     micSelect.disabled = true; document.getElementById('transcriptionPlaceholder').innerText = "> LISTENING TO SIGNAL...";
                     updateButtonsState();
