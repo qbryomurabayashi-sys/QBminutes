@@ -284,6 +284,14 @@
                 recognition.continuous = true; 
                 recognition.interimResults = true;
                 recognition.maxAlternatives = 1; // 最も確からしい結果のみを採用して精度を上げる
+                
+                recognition.onerror = (event) => {
+                    console.warn("SpeechRecognition error:", event.error);
+                    if (event.error === 'not-allowed' || event.error === 'audio-capture') {
+                        showError("ERR: マイクへのアクセスが拒否されたか、利用できません。");
+                    }
+                };
+
                 recognition.onresult = (event) => {
                     let interim = '';
                     const currentTime = document.getElementById('timerDisplay').innerText;
@@ -309,7 +317,13 @@
                             finalTranscript += `[${item.time}] ${item.text}\n`;
                         }
                         currentSessionMap.clear();
-                        try { recognition.start(); } catch (e) {} 
+                        
+                        // モバイルでの連続再起動ブロック（レートリミット）を防ぐため少し待機して再起動
+                        setTimeout(() => {
+                            if (isRecording) {
+                                try { recognition.start(); } catch (e) {} 
+                            }
+                        }, 300);
                     } 
                 };
             } else {
@@ -416,18 +430,16 @@
                 try {
                     const selectedMicId = micSelect.value;
                     
-                    // 音声認識と録音の精度を上げるための詳細なオーディオ設定
-                    const audioConstraints = {
-                        echoCancellation: true,   // エコーキャンセル（スピーカー音の拾い込み防止）
-                        noiseSuppression: true,   // ノイズキャンセリング（背景雑音の除去）
-                        autoGainControl: true     // オートゲインコントロール（音量の自動調整）
-                    };
-                    if (selectedMicId) audioConstraints.deviceId = { exact: selectedMicId };
+                    // モバイル端末でのマイク競合や処理落ちを防ぐため、OS標準の最適設定に任せる
+                    let audioConstraints = true;
+                    if (selectedMicId) {
+                        audioConstraints = { deviceId: { exact: selectedMicId } };
+                    }
 
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
                     
-                    // 録音ビットレートを上げて音質を向上 (128kbps)
-                    mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 128000 }); 
+                    // モバイルのエンコード負荷を下げるため、デフォルトのビットレートを使用
+                    mediaRecorder = new MediaRecorder(stream); 
                     audioChunks = []; currentAudioBlob = null;
                     document.getElementById('sysErrorArea').classList.add('hidden');
                     await requestWakeLock();
