@@ -288,14 +288,13 @@
                     let interim = '';
                     const currentTime = document.getElementById('timerDisplay').innerText;
                     for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript.trim();
-                        if (!transcript) continue;
-
+                        const transcript = event.results[i][0].transcript;
                         if (event.results[i].isFinal) {
+                            const trimmed = transcript.trim();
                             // 重複防止：直前に確定したテキストと完全に一致する場合はスキップ
-                            if (lastFinalTranscript !== transcript) {
+                            if (trimmed && lastFinalTranscript !== trimmed) {
                                 finalTranscript += `[${currentTime}] ${transcript}\n`;
-                                lastFinalTranscript = transcript;
+                                lastFinalTranscript = trimmed;
                             }
                         } else {
                             interim += transcript;
@@ -406,9 +405,7 @@
                     const audioConstraints = {
                         echoCancellation: true,   // エコーキャンセル（スピーカー音の拾い込み防止）
                         noiseSuppression: true,   // ノイズキャンセリング（背景雑音の除去）
-                        autoGainControl: true,    // オートゲインコントロール（音量の自動調整）
-                        sampleRate: 48000,        // 高音質なサンプリングレート
-                        channelCount: 1           // 音声認識に最適なモノラル録音
+                        autoGainControl: true     // オートゲインコントロール（音量の自動調整）
                     };
                     if (selectedMicId) audioConstraints.deviceId = { exact: selectedMicId };
 
