@@ -244,7 +244,7 @@
         let signals = [];
         let timerInterval, startTime, mediaRecorder = null, audioChunks = [], currentAudioBlob = null;
         let finalTranscript = '', interimTranscript = '', recognition = null, wakeLock = null;
-        let lastFinalTranscript = ''; // 重複防止用
+        let currentSessionMap = new Map(); // 認識結果のインデックス管理用
 
         window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('earlyLoader').style.display = 'none';
@@ -291,10 +291,9 @@
                         const transcript = event.results[i][0].transcript;
                         if (event.results[i].isFinal) {
                             const trimmed = transcript.trim();
-                            // 重複防止：直前に確定したテキストと完全に一致する場合はスキップ
-                            if (trimmed && lastFinalTranscript !== trimmed) {
-                                finalTranscript += `[${currentTime}] ${transcript}\n`;
-                                lastFinalTranscript = trimmed;
+                            if (trimmed) {
+                                // Mapを使うことで、同じindexが何度も更新されるバグ（Android Chrome等）を上書きで防ぐ
+                                currentSessionMap.set(i, { time: currentTime, text: trimmed });
                             }
                         } else {
                             interim += transcript;
@@ -303,7 +302,16 @@
                     interimTranscript = interim;
                     updateTranscriptionUI();
                 };
-                recognition.onend = () => { if (isRecording) { try { recognition.start(); } catch (e) {} } };
+                recognition.onend = () => { 
+                    if (isRecording) { 
+                        // セッションが切れたら、現在のMapの内容をfinalTranscriptに確定させる
+                        for (let [index, item] of currentSessionMap.entries()) {
+                            finalTranscript += `[${item.time}] ${item.text}\n`;
+                        }
+                        currentSessionMap.clear();
+                        try { recognition.start(); } catch (e) {} 
+                    } 
+                };
             } else {
                 showError("WARNING: VOICE RECOGNITION NOT SUPPORTED.");
             }
@@ -360,10 +368,17 @@
                 }
                 if (recognition) {
                     try { recognition.stop(); } catch(e){}
+                    // 停止時にMapの内容を確定
+                    for (let [index, item] of currentSessionMap.entries()) {
+                        finalTranscript += `[${item.time}] ${item.text}\n`;
+                    }
+                    currentSessionMap.clear();
+
                     if (interimTranscript) {
                         finalTranscript += `[${document.getElementById('timerDisplay').innerText}] ${interimTranscript}\n`;
-                        interimTranscript = ''; updateTranscriptionUI();
+                        interimTranscript = ''; 
                     }
+                    updateTranscriptionUI();
                 }
 
                 setTimeout(() => {
@@ -417,7 +432,7 @@
                     document.getElementById('sysErrorArea').classList.add('hidden');
                     await requestWakeLock();
 
-                    if (recognition) { try { lastFinalTranscript = ''; recognition.start(); } catch(e){} }
+                    if (recognition) { try { currentSessionMap.clear(); recognition.start(); } catch(e){} }
                     mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
                     mediaRecorder.start(1000); isRecording = true;
                     
@@ -484,9 +499,13 @@
         }
 
         function updateTranscriptionUI() {
-            document.getElementById('transcriptionDisplay').innerText = finalTranscript;
+            let sessionText = '';
+            for (let [index, item] of currentSessionMap.entries()) {
+                sessionText += `[${item.time}] ${item.text}\n`;
+            }
+            document.getElementById('transcriptionDisplay').innerText = finalTranscript + sessionText;
             document.getElementById('interimDisplay').innerText = interimTranscript;
-            if (finalTranscript || interimTranscript) document.getElementById('transcriptionPlaceholder').style.display = 'none';
+            if (finalTranscript || sessionText || interimTranscript) document.getElementById('transcriptionPlaceholder').style.display = 'none';
             const container = document.getElementById('terminalContainer'); container.scrollTop = container.scrollHeight;
             updateButtonsState();
         }
