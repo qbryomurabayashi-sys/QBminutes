@@ -160,7 +160,8 @@
             <div class="bg-zinc-800 border-4 border-zinc-600 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden h-56 sm:h-64 relative">
                 <div class="bg-gradient-to-r from-zinc-700 via-zinc-600 to-zinc-700 p-1.5 flex justify-between items-center border-b-2 border-zinc-900">
                     <span class="text-zinc-300 text-[10px] font-bold tracking-widest pl-2">TRANSCRIPTION LOG</span>
-                    <div class="flex gap-1.5 pr-2">
+                    <div class="flex gap-1.5 pr-2 items-center">
+                        <button id="clearDataBtn" class="text-zinc-400 hover:text-red-500 mr-2 transition-colors" title="データを消去"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
                         <div id="recIndicator" class="w-2 h-2 rounded-full bg-red-900 transition-colors"></div>
                         <div class="w-2 h-2 rounded-full bg-green-500 opacity-50"></div>
                     </div>
@@ -245,6 +246,41 @@
         let timerInterval, startTime, mediaRecorder = null, audioChunks = [], currentAudioBlob = null;
         let finalTranscript = '', interimTranscript = '', recognition = null, wakeLock = null;
         let currentSessionMap = new Map(); // 認識結果のインデックス管理用
+        let db = null; // 音声バックアップ用IndexedDB
+
+        // IndexedDBの初期化（音声データの自動バックアップ用）
+        const dbReq = indexedDB.open("RadarProDB", 1);
+        dbReq.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains('backups')) {
+                db.createObjectStore('backups', { keyPath: 'id' });
+            }
+        };
+        dbReq.onsuccess = (e) => {
+            db = e.target.result;
+            checkRecovery();
+        };
+
+        function checkRecovery() {
+            const savedText = localStorage.getItem('radar_pro_text_backup');
+            if (savedText) {
+                finalTranscript = savedText;
+                updateTranscriptionUI();
+            }
+            if (db) {
+                const tx = db.transaction('backups', 'readonly');
+                const getReq = tx.objectStore('backups').get('latest_audio');
+                getReq.onsuccess = (e) => {
+                    if (e.target.result && e.target.result.blob) {
+                        currentAudioBlob = e.target.result.blob;
+                        if (signals.length === 0) {
+                            addSignal(currentAudioBlob, "RECOVERED DATA");
+                        }
+                        updateButtonsState();
+                    }
+                };
+            }
+        }
 
         window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('earlyLoader').style.display = 'none';
@@ -339,6 +375,30 @@
             document.getElementById('txtBtn').addEventListener('click', () => handleSave(new Blob([finalTranscript || "No data"], {type: 'text/plain'}), '.txt', 'テキストデータ'));
             document.getElementById('syncBtn').addEventListener('click', copyPrompt);
 
+            // データクリアボタン
+            document.getElementById('clearDataBtn').addEventListener('click', () => {
+                if(confirm("⚠️ 記録された音声とテキストデータをすべて消去しますか？\n（復元できなくなります）")) {
+                    finalTranscript = ''; interimTranscript = ''; currentSessionMap.clear();
+                    signals = []; currentAudioBlob = null;
+                    localStorage.removeItem('radar_pro_text_backup');
+                    if (db) {
+                        const tx = db.transaction('backups', 'readwrite');
+                        tx.objectStore('backups').delete('latest_audio');
+                    }
+                    renderSignals(); updateTranscriptionUI();
+                    document.getElementById('transcriptionDisplay').innerText = '';
+                    document.getElementById('transcriptionPlaceholder').style.display = 'block';
+                }
+            });
+
+            // 誤操作防止（タブ閉じ警告）
+            window.addEventListener('beforeunload', (e) => {
+                if (isRecording) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+
             document.addEventListener('visibilitychange', async () => {
                 if (wakeLock !== null && document.visibilityState === 'visible' && isRecording) await requestWakeLock();
             });
@@ -362,6 +422,25 @@
         async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
         function releaseWakeLock() { if (wakeLock) { wakeLock.release().then(()=>wakeLock=null).catch(()=>{}); } }
         function showError(msg) { document.getElementById('sysErrorArea').classList.remove('hidden'); document.getElementById('sysErrorText').innerText = msg; }
+
+        function addSignal(blob, dateStr) {
+            let x, y, overlap = true, attempts = 0;
+            while (overlap && attempts < 50) {
+                const angle = Math.random() * Math.PI * 2, distance = Math.random() * 38;
+                x = 50 + distance * Math.cos(angle); y = 50 + distance * Math.sin(angle);
+                overlap = false;
+                for (const sig of signals) {
+                    const dx = sig.x - x, dy = sig.y - y;
+                    if (Math.sqrt(dx * dx + dy * dy) < 12) { overlap = true; break; }
+                }
+                attempts++;
+            }
+            const newSignal = { id: Date.now(), x: x, y: y, blob: blob, stars: (signals.length % 7) + 1, date: dateStr };
+            signals.push(newSignal);
+            renderSignals();
+            updateButtonsState();
+            if (signals.length === 7) triggerShenron();
+        }
 
         async function toggleRecording() {
             const recBtn = document.getElementById('recBtn'), ripple = document.getElementById('rippleContainer');
@@ -397,32 +476,7 @@
 
                 setTimeout(() => {
                     currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-
-                    // 重ならないように座標を決定
-                    let x, y, overlap = true, attempts = 0;
-                    while (overlap && attempts < 50) {
-                        const angle = Math.random() * Math.PI * 2, distance = Math.random() * 38;
-                        x = 50 + distance * Math.cos(angle); y = 50 + distance * Math.sin(angle);
-                        overlap = false;
-                        for (const sig of signals) {
-                            const dx = sig.x - x, dy = sig.y - y;
-                            if (Math.sqrt(dx * dx + dy * dy) < 12) { overlap = true; break; }
-                        }
-                        attempts++;
-                    }
-
-                    const newSignal = {
-                        id: Date.now(), x: x, y: y,
-                        blob: currentAudioBlob, stars: (signals.length % 7) + 1, date: new Date().toLocaleTimeString('ja-JP', { hour12: false })
-                    };
-                    signals.push(newSignal);
-                    renderSignals();
-                    updateButtonsState();
-
-                    // ドラゴンボールが7つ集まったら神龍を呼び出す
-                    if (signals.length === 7) {
-                        triggerShenron();
-                    }
+                    addSignal(currentAudioBlob, new Date().toLocaleTimeString('ja-JP', { hour12: false }));
                 }, 200);
 
             } else {
@@ -445,7 +499,17 @@
                     await requestWakeLock();
 
                     if (recognition) { try { currentSessionMap.clear(); recognition.start(); } catch(e){} }
-                    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                    mediaRecorder.ondataavailable = (e) => { 
+                        if (e.data.size > 0) {
+                            audioChunks.push(e.data); 
+                            // 録音データを1秒ごとにIndexedDBへバックアップ
+                            if (db) {
+                                const backupBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                                const tx = db.transaction('backups', 'readwrite');
+                                tx.objectStore('backups').put({ id: 'latest_audio', blob: backupBlob });
+                            }
+                        }
+                    };
                     mediaRecorder.start(1000); isRecording = true;
                     
                     // ★ 録音中のスイッチの沈み込み量を調整（8px）
@@ -515,10 +579,15 @@
             for (let [index, item] of currentSessionMap.entries()) {
                 sessionText += `[${item.time}] ${item.text}\n`;
             }
-            document.getElementById('transcriptionDisplay').innerText = finalTranscript + sessionText;
+            const fullText = finalTranscript + sessionText;
+            document.getElementById('transcriptionDisplay').innerText = fullText;
             document.getElementById('interimDisplay').innerText = interimTranscript;
-            if (finalTranscript || sessionText || interimTranscript) document.getElementById('transcriptionPlaceholder').style.display = 'none';
+            if (fullText || interimTranscript) document.getElementById('transcriptionPlaceholder').style.display = 'none';
             const container = document.getElementById('terminalContainer'); container.scrollTop = container.scrollHeight;
+            
+            // テキストをローカルストレージにバックアップ
+            localStorage.setItem('radar_pro_text_backup', finalTranscript);
+            
             updateButtonsState();
         }
 
