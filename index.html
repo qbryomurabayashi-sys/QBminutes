@@ -3,253 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Capsule Corp. OS "RADAR-PRO"</title>
+    <title>Local AI Meeting Assistant (WebLLM)</title>
     
-    <style>
-        body, html {
-            margin: 0; padding: 0; background-color: #18181b; color: #39ff14; font-family: monospace; width: 100%; height: 100%;
-        }
-        #earlyLoader {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 14px; letter-spacing: 2px; z-index: 9999;
-        }
-    </style>
-
     <!-- Tailwind CSS & Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { neon: { pink: '#ff2a85', blue: '#00f3ff', purple: '#bc13fe', green: '#39ff14', yellow: '#fcee0a' } }
-                }
-            }
-        }
-    </script>
-
     <style>
-        body { user-select: none; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #051505; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1a4d1a; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #22c55e; }
+        body { -webkit-font-smoothing: antialiased; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
         
-        .text-shadow-crt { text-shadow: 0 0 2px rgba(57, 255, 20, 0.4), 0 0 5px rgba(57, 255, 20, 0.2); }
-        @keyframes shimmer { 100% { transform: translateX(100%); } }
-        .animate-shimmer { animation: shimmer 1.5s infinite; }
-
-        .ripple { position: absolute; border-radius: 50%; border: 3px solid #a3e635; box-shadow: 0 0 15px #a3e635; animation: rippleAnim 2s infinite ease-out; }
-        .delay-0 { animation-delay: 0s; } .delay-600 { animation-delay: 0.6s; } .delay-1200 { animation-delay: 1.2s; }
-        @keyframes rippleAnim { 0% { width: 0; height: 0; opacity: 0.8; } 100% { width: 100%; height: 100%; opacity: 0; } }
-
-        .radar-scan { background: conic-gradient(from 0deg, transparent 70%, rgba(34, 197, 94, 0.1) 85%, rgba(34, 197, 94, 0.8) 100%); animation: spin 3.5s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        .fade-out { opacity: 0; filter: blur(10px); transform: scale(1.2); transition: all 0.8s ease-in-out; pointer-events: none; }
-        .fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
-        @keyframes fadeInUp { 0% { opacity: 0; transform: translateY(50px); } 100% { opacity: 1; transform: translateY(0); } }
-
-        .ball-enter { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        @keyframes popIn { 
-            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 
-            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 
+        .recording-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
-
-        @keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
-<!-- ★スマホで上下が切れないように justify-start にし、上部パディング(pt-16)を追加 -->
-<body class="min-h-screen flex flex-col items-center justify-start lg:justify-center p-4 pt-16 relative">
+<body class="bg-slate-900 text-slate-200 h-screen flex flex-col font-sans overflow-hidden">
 
-    <div id="earlyLoader">CONNECTING TO SYSTEM...<br/><span style="font-size:10px; color:#555;">(Please wait)</span></div>
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_#27272a_0%,_#000000_100%)] pointer-events-none z-0"></div>
+    <!-- Header -->
+    <header class="bg-slate-950 border-b border-slate-800 px-6 py-4 flex justify-between items-center shrink-0 shadow-md z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <i data-lucide="mic-2" class="w-5 h-5 text-white"></i>
+            </div>
+            <h1 class="text-lg font-bold text-slate-100 tracking-wide">Local AI Meeting Assistant</h1>
+            <span class="bg-slate-800 text-emerald-400 text-[10px] px-2 py-1 rounded border border-slate-700 font-mono ml-2 flex items-center gap-1">
+                <i data-lucide="zap" class="w-3 h-3"></i> WebGPU Powered
+            </span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button id="settingsBtn" class="flex items-center gap-2 text-slate-400 hover:text-white transition bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-md border border-slate-700 text-sm">
+                <i data-lucide="settings" class="w-4 h-4"></i> WebLLM 設定
+            </button>
+        </div>
+    </header>
 
-    <!-- ★警告バナーがボタンに被らないよう fixed に変更 -->
-    <div id="appBrowserWarning" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-xs p-2 text-center font-bold z-[9999] shadow-md">
-        ⚠️ アプリ内ブラウザではマイクが使えません。SafariやChromeで開き直してください。
-    </div>
-
-    <!-- 1. 起動画面 -->
-    <div id="bootScreen" class="hidden absolute inset-0 z-50 bg-[#111] flex flex-col items-center justify-center transition-all duration-800">
-        <div class="flex flex-col items-center">
-            <div class="w-40 h-40 sm:w-56 sm:h-56 mb-8 relative flex justify-center items-center">
-                <img id="bootImage" src="./Gemini_Generated_Image_ot5vfqot5vfqot5v (1).jpg" alt="Hoi Poi Capsule" class="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] rounded-2xl" onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='flex';" />
-                <div id="fallbackLogo" style="display:none;" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white flex-col items-center justify-center relative">
-                    <span class="text-white font-black text-3xl sm:text-4xl absolute -top-4 bg-[#111] px-2">C</span>
-                    <span class="text-white font-black text-3xl sm:text-4xl absolute -bottom-4 bg-[#111] px-2">C</span>
-                    <span class="text-white font-bold text-xs sm:text-sm tracking-widest text-center">CAPSULE<br/>CORP.</span>
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 sm:p-6 gap-6">
+        
+        <!-- Left Panel: Audio Capture & Transcription -->
+        <section class="flex-1 flex flex-col bg-slate-800 rounded-xl border border-slate-700 shadow-lg overflow-hidden w-full lg:w-1/2">
+            <!-- Control Bar -->
+            <div class="p-4 border-b border-slate-700 bg-slate-800/50 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shrink-0">
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <select id="micSelect" class="flex-1 sm:w-48 bg-slate-900 border border-slate-600 rounded-md px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"></select>
+                    <button id="refreshMicBtn" class="p-2 text-slate-400 hover:text-white bg-slate-900 border border-slate-600 rounded-md transition" title="マイク更新">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <div class="bg-slate-900 px-3 py-2 rounded-md border border-slate-700 flex items-center gap-2 min-w-[100px] justify-center">
+                        <div id="recIndicator" class="w-2 h-2 rounded-full bg-slate-600"></div>
+                        <span id="timerDisplay" class="font-mono text-sm text-slate-300">00:00:00</span>
+                    </div>
+                    <button id="recBtn" class="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium transition shadow-sm w-full sm:w-auto">
+                        <i data-lucide="mic" class="w-4 h-4"></i> <span id="recBtnText">録音開始</span>
+                    </button>
                 </div>
             </div>
-            <div class="w-64 sm:w-80 h-3 bg-zinc-800 rounded-full overflow-hidden mb-4 border border-zinc-700">
-                <div id="bootBar" class="h-full bg-[#39ff14] shadow-[0_0_10px_#39ff14]" style="width: 0%"></div>
+            
+            <!-- Error Area -->
+            <div id="sysErrorArea" class="hidden bg-red-900/50 border-b border-red-800 text-red-200 text-xs p-3 flex gap-2 shrink-0">
+                <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i><span id="sysErrorText" class="leading-relaxed"></span>
             </div>
-            <p id="bootText" class="text-[#39ff14] text-xs sm:text-sm tracking-widest font-bold drop-shadow-[0_0_5px_#39ff14]">INITIALIZING... 0%</p>
-        </div>
-    </div>
 
-    <!-- 🐉 神龍 (シェンロン) 演出用オーバーレイ -->
-    <div id="shenronOverlay" class="hidden fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center opacity-0 transition-opacity duration-1000">
-        <div id="shenronFlash" class="absolute inset-0 bg-white z-[101] opacity-0 pointer-events-none"></div>
-        <img id="shenronImg" src="./dragon-ball-dragon-ball-z-shenron-dragon-ball-wallpaper-preview.jpg" class="max-h-[80vh] max-w-[90vw] object-contain transform scale-50 opacity-0 transition-all duration-2000 ease-out z-[102]" alt="Shenron" />
-        <div id="shenronText" class="absolute bottom-20 text-yellow-400 font-bold text-2xl sm:text-4xl tracking-[0.5em] opacity-0 transition-opacity duration-1000 z-[103]" style="text-shadow: 0 0 10px rgba(250,204,21,0.8), 0 0 20px rgba(250,204,21,0.5);">
-            さあ願いを言え
-        </div>
-    </div>
+            <!-- Transcription Log -->
+            <div class="bg-slate-900/50 px-4 py-2 border-b border-slate-700 flex justify-between items-center shrink-0">
+                <span class="text-xs font-bold text-slate-400 tracking-wider flex items-center gap-2">
+                    <i data-lucide="align-left" class="w-4 h-4"></i> TRANSCRIPTION LOG
+                </span>
+                <div class="flex gap-2">
+                    <button id="downloadAudioBtn" class="text-slate-400 hover:text-white transition disabled:opacity-30" title="音声(MP3)ダウンロード" disabled>
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                    </button>
+                    <button id="clearDataBtn" class="text-slate-400 hover:text-red-400 transition ml-2" title="データ消去">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
 
-    <!-- 2. メインコンソール -->
-    <div id="mainConsole" class="hidden relative flex flex-col lg:flex-row items-center justify-center gap-8 w-full max-w-6xl z-10 opacity-0">
-        
-        <!-- 左側：ドラゴンレーダー -->
-        <div class="relative shrink-0 mt-8 lg:mt-0">
-            <!-- ★ スイッチ部分：スマホでも押しやすいように少し大きく、高く調整 -->
-            <div class="absolute -top-10 sm:-top-12 left-1/2 -translate-x-1/2 w-20 sm:w-24 h-16 flex flex-col items-center z-0">
-                <div class="w-full h-6 bg-gradient-to-b from-zinc-300 to-zinc-500 rounded-t-md border-x-2 border-t-2 border-zinc-600 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8)] mt-auto"></div>
-                <button id="recBtn" class="absolute top-0 w-16 h-12 bg-gradient-to-b from-red-500 to-red-700 rounded-t-xl border-2 border-red-900 shadow-[0_4px_0_#7f1d1d,0_10px_10px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] cursor-pointer focus:outline-none transition-transform duration-200 group">
-                    <div class="w-1/2 h-1.5 bg-red-900/40 mx-auto rounded-full mt-1.5"></div>
-                    <div class="w-1/3 h-1.5 bg-red-900/40 mx-auto rounded-full mt-1.5"></div>
+            <div id="terminalContainer" class="flex-1 p-5 overflow-y-auto custom-scrollbar text-slate-300 leading-relaxed text-sm bg-slate-900">
+                <div id="transcriptionPlaceholder" class="text-slate-500 italic flex flex-col items-center justify-center h-full opacity-50">
+                    <i data-lucide="mic-off" class="w-10 h-10 mb-3"></i>
+                    録音待機中...
+                </div>
+                <div id="transcriptionDisplay" class="whitespace-pre-wrap break-words"></div>
+                <div id="interimDisplay" class="text-slate-500 italic mt-2"></div>
+            </div>
+        </section>
+
+        <!-- Right Panel: AI Analysis -->
+        <section class="flex-1 flex flex-col bg-slate-800 rounded-xl border border-slate-700 shadow-lg overflow-hidden w-full lg:w-1/2">
+            <!-- Control Bar -->
+            <div class="p-4 border-b border-slate-700 bg-slate-800/50 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shrink-0">
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="bg-emerald-900/50 p-2 rounded-md border border-emerald-800/50">
+                        <i data-lucide="bot" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <select id="summaryType" class="flex-1 sm:w-56 bg-slate-900 border border-slate-600 rounded-md px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <option value="correction">文字起こしの補助・整形</option>
+                        <option value="minutes">議事録を作成</option>
+                        <option value="interview">面談要約を作成</option>
+                    </select>
+                </div>
+                <button id="generateBtn" class="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-md font-medium transition shadow-sm disabled:opacity-50 w-full sm:w-auto">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i> AI 実行
+                </button>
+            </div>
+            
+            <!-- AI Output Area -->
+            <div class="bg-slate-900/50 px-4 py-2 border-b border-slate-700 flex justify-between items-center shrink-0">
+                <span class="text-xs font-bold text-slate-400 tracking-wider flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> AI OUTPUT
+                </span>
+                <button id="copyAiBtn" class="text-slate-400 hover:text-white transition disabled:opacity-30 hidden" title="結果をコピー">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
                 </button>
             </div>
 
-            <!-- ★ レーダー筐体：スマホでは少し小さく(w-[280px])してはみ出しを防止 -->
-            <div class="relative w-[280px] h-[280px] sm:w-[400px] sm:h-[400px] rounded-full bg-gradient-to-br from-gray-50 via-gray-200 to-gray-400 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_4px_10px_rgba(255,255,255,1),inset_0_-10px_20px_rgba(0,0,0,0.3)] flex items-center justify-center border border-gray-300 z-10">
-                <div class="w-[88%] h-[88%] rounded-full bg-gradient-to-br from-gray-400 to-gray-100 shadow-[inset_0_4px_10px_rgba(0,0,0,0.4),0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center">
-                    <div class="relative w-[92%] h-[92%] rounded-full bg-[#75b834] overflow-hidden border-4 border-zinc-800 shadow-[inset_0_0_20px_rgba(0,0,0,0.6)]">
-                        <div class="absolute inset-0 opacity-60 pointer-events-none" style="background-image: linear-gradient(#3a6b18 2px, transparent 2px), linear-gradient(90deg, #3a6b18 2px, transparent 2px); background-size: 30px 30px; background-position: center center;"></div>
-                        <div class="absolute w-full h-full origin-center pointer-events-none z-10 radar-scan"></div>
-                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[16px] border-transparent border-b-red-600 shadow-[0_0_5px_rgba(255,0,0,0.5)] z-20"></div>
-
-                        <div id="rippleContainer" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                            <div class="ripple delay-0"></div><div class="ripple delay-600"></div><div class="ripple delay-1200"></div>
+            <div class="flex-1 p-5 overflow-y-auto custom-scrollbar text-slate-200 leading-relaxed text-sm bg-slate-900 relative">
+                <div id="summaryPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 italic p-6 text-center">
+                    <i data-lucide="cpu" class="w-12 h-12 mb-4 opacity-30"></i>
+                    <p>録音完了後、上部のメニューからタスクを選んで「AI 実行」をクリックしてください。</p>
+                    <p class="text-xs mt-3 text-slate-600">※処理はすべてブラウザ内（WebGPU）で完結します。</p>
+                </div>
+                
+                <div id="summaryDisplay" class="whitespace-pre-wrap hidden h-full"></div>
+                
+                <!-- Loading & Progress Indicator -->
+                <div id="loadingIndicator" class="hidden absolute inset-0 bg-slate-900/90 backdrop-blur-sm flex-col items-center justify-center text-emerald-400 z-10 p-6 text-center">
+                    <i data-lucide="loader-2" class="w-10 h-10 animate-spin mb-4"></i>
+                    <span id="loadingTitle" class="text-sm font-bold tracking-wider mb-2">Local AI Processing...</span>
+                    
+                    <!-- Progress Bar Container -->
+                    <div id="downloadProgressContainer" class="w-full max-w-xs hidden flex-col items-center mt-4">
+                        <div class="w-full bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
+                            <div id="downloadProgressBar" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
                         </div>
-                        <div id="signalsContainer" class="absolute inset-0 z-30"></div>
-                        <div class="absolute top-[5%] left-[10%] w-[80%] h-[30%] bg-gradient-to-b from-white/40 to-transparent rounded-full blur-[2px] pointer-events-none z-40"></div>
+                        <span id="downloadProgressText" class="text-xs text-slate-400 font-mono">0%</span>
                     </div>
+                    
+                    <span id="loadingSubtext" class="text-xs text-slate-500 mt-4">ブラウザのWebGPUを使用して推論を行っています...</span>
                 </div>
             </div>
+        </section>
+    </main>
 
-            <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 bg-zinc-800 border-[3px] border-zinc-600 rounded-lg p-1.5 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-20">
-                <div class="bg-[#1a0505] border-2 border-zinc-900 rounded px-4 py-1 flex items-center justify-center shadow-[inset_0_0_10px_rgba(0,0,0,1)] min-w-[120px]">
-                    <span id="timerDisplay" class="font-mono text-xl sm:text-2xl tracking-widest text-red-500 drop-shadow-[0_0_5px_#ef4444] font-bold">00:00:00</span>
-                </div>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-xl border border-slate-600 shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                <h2 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5 text-blue-400"></i> WebLLM 設定
+                </h2>
+                <button id="closeSettingsBtn" class="text-slate-400 hover:text-white transition"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <div class="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-70 z-20 pointer-events-none">
-                 <span class="text-zinc-600 font-bold text-[8px] tracking-[0.2em]">CAPSULE CORP.</span>
-            </div>
-        </div>
-
-        <!-- 右側：モジュール群 -->
-        <div class="flex-1 w-full max-w-lg flex flex-col gap-4 mt-16 lg:mt-0">
-            <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
-                <div class="flex justify-between items-center mb-3 border-b border-zinc-600 pb-2">
-                    <h3 class="text-zinc-300 text-xs font-bold tracking-widest flex items-center gap-2"><i data-lucide="mic" class="w-4 h-4"></i> INPUT SOURCE</h3>
-                    <button id="openHelpBtn" class="text-yellow-500 hover:text-yellow-300 text-[10px] flex items-center gap-1 transition"><i data-lucide="info" class="w-3 h-3"></i> 相手の声を拾うには</button>
-                </div>
-                <div class="flex gap-2">
-                    <select id="micSelect" class="flex-1 bg-zinc-900 border border-zinc-600 rounded p-2 text-xs text-[#39ff14] focus:outline-none focus:border-[#39ff14] disabled:opacity-50">
-                        <option value="">システム標準マイク</option>
+            <div class="p-6 space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-slate-300 mb-1">モデル名 (Gemma)</label>
+                    <select id="modelNameInput" class="w-full bg-slate-900 border border-slate-600 rounded-md px-4 py-2.5 text-sm text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition font-mono">
+                        <option value="gemma-2b-it-q4f32_1-MLC">Gemma 2B IT (q4f32)</option>
+                        <option value="gemma-2-2b-it-q4f16_1-MLC">Gemma 2 2B IT (q4f16)</option>
                     </select>
-                    <button id="refreshMicBtn" class="bg-zinc-700 hover:bg-zinc-600 border border-zinc-500 text-white px-3 rounded disabled:opacity-50 transition shadow-sm"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                    <p class="text-xs text-slate-500 mt-1.5">※初回実行時にブラウザのキャッシュに数GBのモデルがダウンロードされます。</p>
                 </div>
-                <div id="sysErrorArea" class="hidden mt-3 bg-red-900/50 border border-red-500 text-red-300 text-[10px] p-2 rounded flex gap-2">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i><span id="sysErrorText" class="leading-relaxed"></span>
-                </div>
-            </div>
-
-            <!-- トランスクリプション ログ -->
-            <div class="bg-zinc-800 border-4 border-zinc-600 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden h-56 sm:h-64 relative">
-                <div class="bg-gradient-to-r from-zinc-700 via-zinc-600 to-zinc-700 p-1.5 flex justify-between items-center border-b-2 border-zinc-900">
-                    <span class="text-zinc-300 text-[10px] font-bold tracking-widest pl-2">TRANSCRIPTION LOG</span>
-                    <div class="flex gap-1.5 pr-2 items-center">
-                        <button id="clearDataBtn" class="text-zinc-400 hover:text-red-500 mr-2 transition-colors" title="データを消去"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-                        <div id="recIndicator" class="w-2 h-2 rounded-full bg-red-900 transition-colors"></div>
-                        <div class="w-2 h-2 rounded-full bg-green-500 opacity-50"></div>
-                    </div>
-                </div>
-                <div id="terminalContainer" class="flex-1 bg-[#051505] p-3 overflow-y-auto relative font-sans text-sm leading-relaxed custom-scrollbar">
-                    <div class="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.03)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none z-10"></div>
-                    <div class="relative z-20 text-[#39ff14] text-shadow-crt break-words">
-                        <div id="transcriptionPlaceholder" class="opacity-50 italic font-mono text-xs">&gt; STANDBY. WAITING FOR RECORDING.</div>
-                        <span id="transcriptionDisplay" class="whitespace-pre-wrap"></span>
-                        <span id="interimDisplay" class="font-bold opacity-80"></span>
-                    </div>
+                <div class="bg-emerald-900/20 border border-emerald-700/50 rounded-md p-4 text-xs text-emerald-200 leading-relaxed">
+                    <strong class="flex items-center gap-1 mb-1 text-emerald-400"><i data-lucide="info" class="w-4 h-4"></i> WebGPUについて</strong>
+                    このアプリは外部サーバーやOllamaを一切使用せず、お使いのデバイスのGPU（WebGPU）を使用してブラウザ内で直接AIを動かします。データが外部に送信されることはなく、プライバシーは完全に保護されます。
                 </div>
             </div>
-
-            <!-- エクスポート -->
-            <div class="bg-gradient-to-b from-zinc-700 to-zinc-800 border-2 border-zinc-600 rounded-xl p-3 shadow-[0_10px_20px_rgba(0,0,0,0.5)] mb-8">
-                <span class="text-zinc-400 text-[10px] font-bold tracking-widest mb-2 block">DATA EXTRACTION / AI SYNC</span>
-                <div class="flex flex-col gap-2">
-                    <div class="grid grid-cols-2 gap-2">
-                        <button id="downloadBtn" disabled class="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-yellow-500 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition">
-                            <i data-lucide="download" class="w-4 h-4"></i><span class="text-[10px] font-bold">LATEST MP3</span>
-                        </button>
-                        <button id="txtBtn" disabled class="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-600 text-blue-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition">
-                            <i data-lucide="file-text" class="w-4 h-4"></i><span class="text-[10px] font-bold">TXT LOG</span>
-                        </button>
-                    </div>
-                    <div class="flex gap-2">
-                        <select id="promptSelect" class="flex-1 bg-zinc-900 border border-zinc-600 text-zinc-300 text-[10px] sm:text-xs rounded p-2 focus:outline-none focus:border-red-500 transition cursor-pointer appearance-none">
-                            <option value="meeting">📝 標準：ビジネス議事録</option>
-                            <option value="interview">🗣️ 面談報告シート</option>
-                        </select>
-                        <button id="syncBtn" disabled class="flex items-center justify-center gap-1 bg-zinc-900 hover:bg-[#1a0505] border border-red-900 text-red-500 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-zinc-900 p-2 rounded transition relative overflow-hidden group px-4">
-                            <div class="absolute inset-0 bg-red-500/10 -translate-x-full group-hover:animate-shimmer"></div>
-                            <i data-lucide="cpu" class="w-4 h-4 relative z-10"></i><span class="text-[10px] font-bold relative z-10">SYNC</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- ヘルプモーダル -->
-    <div id="helpModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div class="bg-zinc-800 border-2 border-zinc-500 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-full max-w-lg overflow-hidden font-sans">
-            <div class="bg-zinc-700 p-3 border-b border-zinc-500 flex justify-between items-center">
-                <h3 class="text-white font-bold flex items-center gap-2 font-mono"><i data-lucide="info" class="w-5 h-5 text-yellow-400"></i> AUDIO MANUAL</h3>
-                <button id="closeHelpBtn" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div class="p-5 text-sm text-zinc-300 space-y-4 max-h-[70vh] overflow-y-auto">
-                <p class="text-yellow-400 font-bold border-b border-zinc-600 pb-2">PCから流れる音（ZOOM等の相手の声）を録音・文字起こしするには、Windowsの「ステレオミキサー」機能を使用します。</p>
-                <ol class="list-decimal list-inside space-y-3 pl-2">
-                    <li>タスクバー右下の「スピーカー」アイコンを右クリックし、<strong>「サウンドの設定」</strong>を開く。</li>
-                    <li>下部にある<strong>「サウンド コントロール パネル」</strong>（または「その他のサウンド設定」）をクリック。</li>
-                    <li>開いたウィンドウの<strong>「録音」</strong>タブを選択。</li>
-                    <li>空いている場所で右クリックし、<strong>「無効なデバイスの表示」</strong>にチェック。</li>
-                    <li>表示された<strong>「ステレオミキサー」</strong>を右クリックして<strong>「有効」</strong>にする。</li>
-                    <li>当アプリの INPUT SOURCE で<strong>「ステレオミキサー」</strong>を選択する。</li>
-                </ol>
+            <div class="px-6 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-end">
+                <button id="saveSettingsBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm font-bold transition shadow-sm">保存して閉じる</button>
             </div>
         </div>
     </div>
 
-    <script>
-        const APP_ICON_URL = encodeURI("./Gemini_Generated_Image_ot5vfqot5vfqot5v (1).jpg");
-        const SHENRON_IMG_URL = "dragon-ball-dragon-ball-z-shenron-dragon-ball-wallpaper-preview.jpg";
+    <!-- Main Logic as ES Module -->
+    <script type="module">
+        import { CreateMLCEngine } from "@mlc-ai/web-llm";
 
-        try {
-            if (/Line|Instagram|Twitter|FBAN|FBAV|FBIOS/i.test(navigator.userAgent)) {
-                document.getElementById('appBrowserWarning').classList.remove('hidden');
-            }
-            
-            // アイコン設定
-            let linkIcon = document.createElement('link'); linkIcon.rel = 'icon'; linkIcon.href = APP_ICON_URL;
-            document.head.appendChild(linkIcon);
-            let appleIcon = document.createElement('link'); appleIcon.rel = 'apple-touch-icon'; appleIcon.href = APP_ICON_URL;
-            document.head.appendChild(appleIcon);
-        } catch(e) { console.warn("Icon Setup skipped:", e); }
+        // Lucide Icons Initialization
+        lucide.createIcons();
 
+        // --- State Variables ---
         let isRecording = false;
-        let signals = [];
-        let timerInterval, startTime, mediaRecorder = null, audioChunks = [], currentAudioBlob = null;
+        let timerInterval, startTime;
+        let mediaRecorder = null, audioChunks = [], currentAudioBlob = null;
         let finalTranscript = '', interimTranscript = '', recognition = null, wakeLock = null;
-        let currentSessionMap = new Map(); // 認識結果のインデックス管理用
-        let db = null; // 音声バックアップ用IndexedDB
+        let currentSessionMap = new Map(); 
+        let db = null; 
+        
+        // WebLLM Engine
+        let engine = null;
 
-        // IndexedDBの初期化（音声データの自動バックアップ用）
-        const dbReq = indexedDB.open("RadarProDB", 1);
+        // --- IndexedDB Initialization (Audio Backup) ---
+        const dbReq = indexedDB.open("LocalAIAssistantDB", 1);
         dbReq.onupgradeneeded = (e) => {
             db = e.target.result;
             if (!db.objectStoreNames.contains('backups')) {
@@ -262,7 +218,7 @@
         };
 
         function checkRecovery() {
-            const savedText = localStorage.getItem('radar_pro_text_backup');
+            const savedText = localStorage.getItem('local_ai_assistant_text');
             if (savedText) {
                 finalTranscript = savedText;
                 updateTranscriptionUI();
@@ -273,125 +229,68 @@
                 getReq.onsuccess = (e) => {
                     if (e.target.result && e.target.result.blob) {
                         currentAudioBlob = e.target.result.blob;
-                        if (signals.length === 0) {
-                            addSignal(currentAudioBlob, "RECOVERED DATA");
-                        }
-                        updateButtonsState();
+                        document.getElementById('downloadAudioBtn').disabled = false;
                     }
                 };
             }
         }
 
+        // --- DOM Elements & Event Listeners ---
         window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('earlyLoader').style.display = 'none';
-            const bootScreen = document.getElementById('bootScreen');
-            bootScreen.classList.remove('hidden');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            initApp();
 
-            let bootProgress = 0;
-            const texts = ["CONNECTING TO SATELLITE...", "AUTHENTICATING CAPSULE CORP. ID...", "CALIBRATING RADAR WAVES...", "INITIALIZING SPEECH RECOGNITION...", "SYSTEM READY."];
-            const interval = setInterval(() => {
-                bootProgress += 4;
-                if(bootProgress > 100) bootProgress = 100;
-                document.getElementById('bootBar').style.width = `${bootProgress}%`;
-                document.getElementById('bootText').innerText = `${texts[Math.floor((bootProgress/100)*(texts.length-1))]} ${bootProgress}%`;
-
-                if (bootProgress >= 100) {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        bootScreen.classList.add('fade-out');
-                        setTimeout(() => {
-                            bootScreen.style.display = 'none';
-                            document.getElementById('mainConsole').classList.remove('hidden');
-                            document.getElementById('mainConsole').classList.add('fade-in-up');
-                            initApp();
-                        }, 800);
-                    }, 300);
-                }
-            }, 40);
-        });
-
-        function initApp() {
-            updateMicList();
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                recognition = new SpeechRecognition();
-                recognition.lang = 'ja-JP'; 
-                recognition.continuous = true; 
-                recognition.interimResults = true;
-                recognition.maxAlternatives = 1; // 最も確からしい結果のみを採用して精度を上げる
-                
-                recognition.onerror = (event) => {
-                    console.warn("SpeechRecognition error:", event.error);
-                    if (event.error === 'not-allowed' || event.error === 'audio-capture') {
-                        showError("ERR: マイクへのアクセスが拒否されたか、利用できません。");
-                    }
-                };
-
-                recognition.onresult = (event) => {
-                    let interim = '';
-                    const currentTime = document.getElementById('timerDisplay').innerText;
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript;
-                        if (event.results[i].isFinal) {
-                            const trimmed = transcript.trim();
-                            if (trimmed) {
-                                // Mapを使うことで、同じindexが何度も更新されるバグ（Android Chrome等）を上書きで防ぐ
-                                currentSessionMap.set(i, { time: currentTime, text: trimmed });
-                            }
-                        } else {
-                            interim += transcript;
-                        }
-                    }
-                    interimTranscript = interim;
-                    updateTranscriptionUI();
-                };
-                recognition.onend = () => { 
-                    if (isRecording) { 
-                        // セッションが切れたら、現在のMapの内容をfinalTranscriptに確定させる
-                        for (let [index, item] of currentSessionMap.entries()) {
-                            finalTranscript += `[${item.time}] ${item.text}\n`;
-                        }
-                        currentSessionMap.clear();
-                        
-                        // モバイルでの連続再起動ブロック（レートリミット）を防ぐため少し待機して再起動
-                        setTimeout(() => {
-                            if (isRecording) {
-                                try { recognition.start(); } catch (e) {} 
-                            }
-                        }, 300);
-                    } 
-                };
-            } else {
-                showError("WARNING: VOICE RECOGNITION NOT SUPPORTED.");
-            }
-
+            // Buttons
             document.getElementById('recBtn').addEventListener('click', toggleRecording);
             document.getElementById('refreshMicBtn').addEventListener('click', updateMicList);
-            document.getElementById('openHelpBtn').addEventListener('click', () => document.getElementById('helpModal').classList.remove('hidden'));
-            document.getElementById('closeHelpBtn').addEventListener('click', () => document.getElementById('helpModal').classList.add('hidden'));
+            document.getElementById('downloadAudioBtn').addEventListener('click', () => handleSave(currentAudioBlob, '.mp3', 'MP3音声データ'));
+            document.getElementById('generateBtn').addEventListener('click', generateSummary);
             
-            document.getElementById('downloadBtn').addEventListener('click', () => handleSave(currentAudioBlob, '.mp3', 'MP3音声データ'));
-            document.getElementById('txtBtn').addEventListener('click', () => handleSave(new Blob([finalTranscript || "No data"], {type: 'text/plain'}), '.txt', 'テキストデータ'));
-            document.getElementById('syncBtn').addEventListener('click', copyPrompt);
+            // Copy AI Result
+            document.getElementById('copyAiBtn').addEventListener('click', () => {
+                const text = document.getElementById('summaryDisplay').innerText;
+                if(text) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        const btn = document.getElementById('copyAiBtn');
+                        const originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-green-400"></i>';
+                        lucide.createIcons();
+                        setTimeout(() => { btn.innerHTML = originalHtml; lucide.createIcons(); }, 2000);
+                    });
+                }
+            });
 
-            // データクリアボタン
+            // Settings
+            document.getElementById('settingsBtn').addEventListener('click', () => document.getElementById('settingsModal').classList.remove('hidden'));
+            document.getElementById('closeSettingsBtn').addEventListener('click', () => document.getElementById('settingsModal').classList.add('hidden'));
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+            // Load Settings
+            const savedModel = localStorage.getItem('webllm_model');
+            if (savedModel) document.getElementById('modelNameInput').value = savedModel;
+
+            // Clear Data
             document.getElementById('clearDataBtn').addEventListener('click', () => {
                 if(confirm("⚠️ 記録された音声とテキストデータをすべて消去しますか？\n（復元できなくなります）")) {
                     finalTranscript = ''; interimTranscript = ''; currentSessionMap.clear();
-                    signals = []; currentAudioBlob = null;
-                    localStorage.removeItem('radar_pro_text_backup');
+                    currentAudioBlob = null;
+                    localStorage.removeItem('local_ai_assistant_text');
                     if (db) {
                         const tx = db.transaction('backups', 'readwrite');
                         tx.objectStore('backups').delete('latest_audio');
                     }
-                    renderSignals(); updateTranscriptionUI();
+                    updateTranscriptionUI();
                     document.getElementById('transcriptionDisplay').innerText = '';
-                    document.getElementById('transcriptionPlaceholder').style.display = 'block';
+                    document.getElementById('transcriptionPlaceholder').style.display = 'flex';
+                    document.getElementById('downloadAudioBtn').disabled = true;
+                    
+                    document.getElementById('summaryDisplay').style.display = 'none';
+                    document.getElementById('summaryPlaceholder').style.display = 'flex';
+                    document.getElementById('copyAiBtn').classList.add('hidden');
+                    document.getElementById('timerDisplay').innerText = '00:00:00';
                 }
             });
 
-            // 誤操作防止（タブ閉じ警告）
+            // Prevent accidental close
             window.addEventListener('beforeunload', (e) => {
                 if (isRecording) {
                     e.preventDefault();
@@ -402,66 +301,120 @@
             document.addEventListener('visibilitychange', async () => {
                 if (wakeLock !== null && document.visibilityState === 'visible' && isRecording) await requestWakeLock();
             });
+        });
+
+        function saveSettings() {
+            localStorage.setItem('webllm_model', document.getElementById('modelNameInput').value);
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        // --- App Initialization ---
+        function initApp() {
+            updateMicList();
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.lang = 'ja-JP'; 
+                recognition.continuous = true; 
+                recognition.interimResults = true;
+                recognition.maxAlternatives = 1;
+                
+                recognition.onerror = (event) => {
+                    console.warn("SpeechRecognition error:", event.error);
+                    if (event.error === 'not-allowed' || event.error === 'audio-capture') {
+                        showError("ERR: マイクへのアクセスが拒否されたか、利用できません。");
+                        if(isRecording) toggleRecording(); // Stop UI
+                    }
+                };
+
+                recognition.onresult = (event) => {
+                    let interim = '';
+                    const currentTime = document.getElementById('timerDisplay').innerText;
+
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        const res = event.results[i];
+                        if (res.isFinal) {
+                            currentSessionMap.set(i, { time: currentTime, text: res[0].transcript });
+                        } else {
+                            interim += res[0].transcript;
+                        }
+                    }
+                    interimTranscript = interim;
+                    updateTranscriptionUI();
+                };
+
+                recognition.onend = () => { 
+                    if (isRecording) { 
+                        for (let [index, item] of currentSessionMap.entries()) {
+                            finalTranscript += `[${item.time}] ${item.text}\n`;
+                        }
+                        currentSessionMap.clear();
+                        
+                        setTimeout(() => {
+                            if (isRecording) {
+                                try { recognition.start(); } catch (e) {} 
+                            }
+                        }, 300);
+                    } 
+                };
+            } else {
+                showError("ERR: このブラウザは音声認識をサポートしていません。Chromeをご利用ください。");
+                document.getElementById('recBtn').disabled = true;
+            }
         }
 
         async function updateMicList() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(t => t.stop());
+                await navigator.mediaDevices.getUserMedia({ audio: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                const audioInputs = devices.filter(device => device.kind === 'audioinput');
                 const select = document.getElementById('micSelect');
                 select.innerHTML = '<option value="">システム標準マイク</option>';
-                audioInputs.forEach((d, i) => {
-                    const opt = document.createElement('option'); opt.value = d.deviceId; opt.text = d.label || `マイク ${i + 1}`; select.appendChild(opt);
+                audioInputs.forEach(device => {
+                    if (device.deviceId !== 'default' && device.deviceId !== 'communications') {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || `マイク ${select.length}`;
+                        select.appendChild(option);
+                    }
                 });
-                document.getElementById('sysErrorArea').classList.add('hidden');
-            } catch (err) { showError("ERR: MIC ACCESS DENIED. CHECK PERMISSIONS."); }
+            } catch (err) { console.warn("マイク一覧取得失敗:", err); }
         }
 
-        async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+        async function requestWakeLock() {
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+        }
         function releaseWakeLock() { if (wakeLock) { wakeLock.release().then(()=>wakeLock=null).catch(()=>{}); } }
-        function showError(msg) { document.getElementById('sysErrorArea').classList.remove('hidden'); document.getElementById('sysErrorText').innerText = msg; }
-
-        function addSignal(blob, dateStr) {
-            let x, y, overlap = true, attempts = 0;
-            while (overlap && attempts < 50) {
-                const angle = Math.random() * Math.PI * 2, distance = Math.random() * 38;
-                x = 50 + distance * Math.cos(angle); y = 50 + distance * Math.sin(angle);
-                overlap = false;
-                for (const sig of signals) {
-                    const dx = sig.x - x, dy = sig.y - y;
-                    if (Math.sqrt(dx * dx + dy * dy) < 12) { overlap = true; break; }
-                }
-                attempts++;
-            }
-            const newSignal = { id: Date.now(), x: x, y: y, blob: blob, stars: (signals.length % 7) + 1, date: dateStr };
-            signals.push(newSignal);
-            renderSignals();
-            updateButtonsState();
-            if (signals.length === 7) triggerShenron();
+        function showError(msg) { 
+            document.getElementById('sysErrorArea').classList.remove('hidden'); 
+            document.getElementById('sysErrorText').innerText = msg; 
         }
 
+        // --- Recording Logic ---
         async function toggleRecording() {
-            const recBtn = document.getElementById('recBtn'), ripple = document.getElementById('rippleContainer');
-            const recIndicator = document.getElementById('recIndicator'), micSelect = document.getElementById('micSelect');
+            const recBtn = document.getElementById('recBtn');
+            const recBtnText = document.getElementById('recBtnText');
+            const micSelect = document.getElementById('micSelect');
+            const recIndicator = document.getElementById('recIndicator');
 
             if (isRecording) {
-                // --- 停止処理 ---
+                // Stop Recording
                 isRecording = false; clearInterval(timerInterval); releaseWakeLock();
-                // ★ スイッチを元の位置に戻す
-                recBtn.style.transform = 'translateY(0)'; 
-                ripple.classList.add('hidden');
-                recIndicator.classList.remove('shadow-[0_0_5px_#ef4444]', 'animate-pulse'); recIndicator.classList.replace('bg-red-500', 'bg-red-900');
+                
+                recBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'recording-pulse');
+                recBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                recBtn.innerHTML = '<i data-lucide="mic" class="w-4 h-4"></i> <span>録音開始</span>';
+                recIndicator.classList.remove('bg-red-500', 'animate-pulse');
+                recIndicator.classList.add('bg-slate-600');
+                lucide.createIcons();
+                
                 micSelect.disabled = false;
-                document.getElementById('transcriptionPlaceholder').innerText = "> STANDBY. WAITING FOR RECORDING.";
-
+                
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                     mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop());
                 }
                 if (recognition) {
                     try { recognition.stop(); } catch(e){}
-                    // 停止時にMapの内容を確定
                     for (let [index, item] of currentSessionMap.entries()) {
                         finalTranscript += `[${item.time}] ${item.text}\n`;
                     }
@@ -475,16 +428,16 @@
                 }
 
                 setTimeout(() => {
-                    currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-                    addSignal(currentAudioBlob, new Date().toLocaleTimeString('ja-JP', { hour12: false }));
+                    if(audioChunks.length > 0) {
+                        currentAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                        document.getElementById('downloadAudioBtn').disabled = false;
+                    }
                 }, 200);
 
             } else {
-                // --- 開始処理 ---
+                // Start Recording
                 try {
                     const selectedMicId = micSelect.value;
-                    
-                    // モバイル端末でのマイク競合や処理落ちを防ぐため、OS標準の最適設定に任せる
                     let audioConstraints = true;
                     if (selectedMicId) {
                         audioConstraints = { deviceId: { exact: selectedMicId } };
@@ -492,9 +445,9 @@
 
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
                     
-                    // モバイルのエンコード負荷を下げるため、デフォルトのビットレートを使用
                     mediaRecorder = new MediaRecorder(stream); 
                     audioChunks = []; currentAudioBlob = null;
+                    document.getElementById('downloadAudioBtn').disabled = true;
                     document.getElementById('sysErrorArea').classList.add('hidden');
                     await requestWakeLock();
 
@@ -502,7 +455,6 @@
                     mediaRecorder.ondataavailable = (e) => { 
                         if (e.data.size > 0) {
                             audioChunks.push(e.data); 
-                            // 録音データを1秒ごとにIndexedDBへバックアップ
                             if (db) {
                                 const backupBlob = new Blob(audioChunks, { type: 'audio/mp3' });
                                 const tx = db.transaction('backups', 'readwrite');
@@ -512,12 +464,15 @@
                     };
                     mediaRecorder.start(1000); isRecording = true;
                     
-                    // ★ 録音中のスイッチの沈み込み量を調整（8px）
-                    recBtn.style.transform = 'translateY(8px)'; 
-                    ripple.classList.remove('hidden');
-                    recIndicator.classList.add('shadow-[0_0_5px_#ef4444]', 'animate-pulse'); recIndicator.classList.replace('bg-red-900', 'bg-red-500');
-                    micSelect.disabled = true; document.getElementById('transcriptionPlaceholder').innerText = "> LISTENING TO SIGNAL...";
-                    updateButtonsState();
+                    recBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    recBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'recording-pulse');
+                    recBtn.innerHTML = '<i data-lucide="square" class="w-4 h-4 fill-current"></i> <span>録音停止</span>';
+                    recIndicator.classList.remove('bg-slate-600');
+                    recIndicator.classList.add('bg-red-500', 'animate-pulse');
+                    lucide.createIcons();
+                    
+                    micSelect.disabled = true; 
+                    document.getElementById('transcriptionPlaceholder').style.display = 'none';
 
                     startTime = Date.now();
                     timerInterval = setInterval(() => {
@@ -529,51 +484,6 @@
             }
         }
 
-        // ==========================================
-        // 🐉 神龍呼び出しアニメーション処理
-        // ==========================================
-        function triggerShenron() {
-            const overlay = document.getElementById('shenronOverlay');
-            const flash = document.getElementById('shenronFlash');
-            const img = document.getElementById('shenronImg');
-            const text = document.getElementById('shenronText');
-
-            overlay.classList.remove('hidden');
-            
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-                overlay.classList.add('opacity-100');
-                flash.style.animation = 'flashAnim 1.5s ease-out forwards';
-                
-                setTimeout(() => {
-                    img.classList.remove('scale-50', 'opacity-0');
-                    img.classList.add('scale-100', 'opacity-100');
-                }, 300);
-
-                setTimeout(() => {
-                    text.classList.remove('opacity-0');
-                    text.classList.add('opacity-100');
-                }, 1500);
-
-                // 6秒後に消える
-                setTimeout(() => {
-                    overlay.classList.remove('opacity-100');
-                    overlay.classList.add('opacity-0');
-                    setTimeout(() => {
-                        overlay.classList.add('hidden');
-                        img.classList.remove('scale-100', 'opacity-100'); img.classList.add('scale-50', 'opacity-0');
-                        text.classList.remove('opacity-100'); text.classList.add('opacity-0');
-                        flash.style.animation = '';
-                        
-                        // 願いを叶えたのでボールをリセットする
-                        signals = [];
-                        renderSignals();
-                        updateButtonsState();
-                    }, 1000);
-                }, 6000);
-            }, 100);
-        }
-
         function updateTranscriptionUI() {
             let sessionText = '';
             for (let [index, item] of currentSessionMap.entries()) {
@@ -582,43 +492,112 @@
             const fullText = finalTranscript + sessionText;
             document.getElementById('transcriptionDisplay').innerText = fullText;
             document.getElementById('interimDisplay').innerText = interimTranscript;
-            if (fullText || interimTranscript) document.getElementById('transcriptionPlaceholder').style.display = 'none';
-            const container = document.getElementById('terminalContainer'); container.scrollTop = container.scrollHeight;
             
-            // テキストをローカルストレージにバックアップ
-            localStorage.setItem('radar_pro_text_backup', finalTranscript);
+            if (fullText || interimTranscript) {
+                document.getElementById('transcriptionPlaceholder').style.display = 'none';
+            }
             
-            updateButtonsState();
+            const container = document.getElementById('terminalContainer'); 
+            container.scrollTop = container.scrollHeight;
+            
+            localStorage.setItem('local_ai_assistant_text', finalTranscript);
         }
 
-        function updateButtonsState() {
-            const dBtn = document.getElementById('downloadBtn'), tBtn = document.getElementById('txtBtn'), sBtn = document.getElementById('syncBtn');
-            dBtn.disabled = !currentAudioBlob || isRecording; tBtn.disabled = !finalTranscript || isRecording; sBtn.disabled = !finalTranscript || isRecording;
-        }
+        // --- WebLLM Logic ---
+        async function generateSummary() {
+            if (!finalTranscript) {
+                alert("文字起こしデータがありません。先に録音を行ってください。");
+                return;
+            }
 
-        function renderSignals() {
-            const container = document.getElementById('signalsContainer'); container.innerHTML = '';
-            signals.forEach(sig => {
-                const ball = document.createElement('div');
-                ball.className = "absolute w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-yellow-200 via-orange-400 to-orange-600 border border-orange-700 shadow-[0_0_10px_#f59e0b,inset_0_-2px_4px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.8)] flex items-center justify-center cursor-pointer z-30 group ball-enter transform -translate-x-1/2 -translate-y-1/2";
-                ball.style.left = `${sig.x}%`; ball.style.top = `${sig.y}%`;
-                
-                let starsHTML = '<div class="absolute inset-0 flex flex-wrap justify-center content-center items-center gap-[1px] p-1">';
-                for(let i=0; i<sig.stars; i++){ 
-                    starsHTML += `<span class="text-red-600 text-[6px] sm:text-[8px] leading-none" style="text-shadow: 0 0 2px rgba(255,0,0,0.8)">★</span>`; 
+            const modelName = document.getElementById('modelNameInput').value || 'gemma-2b-it-q4f32_1-MLC';
+            const summaryType = document.getElementById('summaryType').value;
+
+            let prompt = "";
+            if (summaryType === 'correction') {
+                prompt = `以下の文字起こしデータは音声認識によるものです。誤字脱字を修正し、文脈に合わせて読みやすい文章に整形（補正）してください。要約はせず、できるだけ全文のニュアンスを残して出力してください。\n\n--- 文字起こしデータ ---\n${finalTranscript}`;
+            } else if (summaryType === 'minutes') {
+                prompt = `以下の文字起こしデータから、ビジネス議事録を作成してください。出力は日本語で行ってください。\n\n【フォーマット】\n1. 会議の目的\n2. 決定事項\n3. 議題ごとの詳細\n4. Next Action（タスクと担当）\n\n--- 文字起こしデータ ---\n${finalTranscript}`;
+            } else if (summaryType === 'interview') {
+                prompt = `以下の面談の文字起こしデータから、面談要約を作成してください。出力は日本語で行ってください。\n\n【フォーマット】\n1. 面談の目的と主要な話題\n2. 懸念事項・課題\n3. 次のアクション\n4. 特記事項\n\n--- 文字起こしデータ ---\n${finalTranscript}`;
+            }
+
+            document.getElementById('summaryPlaceholder').style.display = 'none';
+            document.getElementById('summaryDisplay').style.display = 'none';
+            document.getElementById('copyAiBtn').classList.add('hidden');
+            
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const progressContainer = document.getElementById('downloadProgressContainer');
+            const loadingTitle = document.getElementById('loadingTitle');
+            const loadingSubtext = document.getElementById('loadingSubtext');
+            
+            loadingIndicator.style.display = 'flex';
+            document.getElementById('generateBtn').disabled = true;
+
+            try {
+                // Initialize or Reload Engine if model changed
+                if (!engine || engine.activeModel !== modelName) {
+                    loadingTitle.innerText = "モデルを読み込み中...";
+                    progressContainer.classList.remove('hidden');
+                    loadingSubtext.innerText = "初回はモデルのダウンロードに時間がかかります（数GB）。Wi-Fi環境を推奨します。";
+                    
+                    const initProgressCallback = (initProgress) => {
+                        const progressPercent = Math.round(initProgress.progress * 100);
+                        document.getElementById('downloadProgressBar').style.width = `${progressPercent}%`;
+                        document.getElementById('downloadProgressText').innerText = `${progressPercent}% - ${initProgress.text}`;
+                    };
+
+                    engine = await CreateMLCEngine(
+                        modelName,
+                        { initProgressCallback: initProgressCallback }
+                    );
+                    engine.activeModel = modelName;
                 }
-                starsHTML += '</div>';
 
-                const tooltip = `<div class="absolute top-full mt-2 opacity-0 group-hover:opacity-100 bg-white border-2 border-zinc-800 text-zinc-800 text-[10px] px-2 py-1 rounded font-bold whitespace-nowrap shadow-lg pointer-events-none flex flex-col items-center z-50 transition-opacity"><span>${sig.date}</span><span class="text-blue-600 mt-1">MP3保存</span></div>`;
-                ball.innerHTML = starsHTML + tooltip;
-                ball.onclick = (e) => { e.stopPropagation(); handleSave(sig.blob, '.mp3', 'MP3音声データ'); };
-                container.appendChild(ball);
-            });
+                loadingTitle.innerText = "AI 推論中...";
+                progressContainer.classList.add('hidden');
+                loadingSubtext.innerText = "ブラウザのWebGPUを使用して推論を行っています...";
+
+                const messages = [
+                    { role: "user", content: prompt }
+                ];
+
+                // Stream the response
+                const chunks = await engine.chat.completions.create({
+                    messages,
+                    stream: true,
+                });
+
+                document.getElementById('summaryDisplay').innerText = "";
+                document.getElementById('summaryDisplay').style.display = 'block';
+                loadingIndicator.style.display = 'none';
+
+                let reply = "";
+                for await (const chunk of chunks) {
+                    const content = chunk.choices[0]?.delta?.content || "";
+                    reply += content;
+                    document.getElementById('summaryDisplay').innerText = reply;
+                    
+                    // Auto scroll
+                    const container = document.getElementById('summaryDisplay').parentElement;
+                    container.scrollTop = container.scrollHeight;
+                }
+
+                document.getElementById('copyAiBtn').classList.remove('hidden');
+            } catch (error) {
+                console.error("WebLLM Error:", error);
+                document.getElementById('summaryDisplay').innerText = `【エラーが発生しました】\n\n詳細: ${error.message}\n\n■ 確認事項:\n1. お使いのブラウザがWebGPUをサポートしているか確認してください（Chrome推奨）。\n2. デバイスのメモリ（RAM/VRAM）が不足している可能性があります。`;
+                document.getElementById('summaryDisplay').style.display = 'block';
+                loadingIndicator.style.display = 'none';
+            } finally {
+                document.getElementById('generateBtn').disabled = false;
+            }
         }
 
+        // --- Utility ---
         async function handleSave(blob, ext, desc) {
             if (!blob) return;
-            const filename = `LOG_${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}${ext}`;
+            const filename = `AudioLog_${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}${ext}`;
             if (window.showSaveFilePicker) {
                 try {
                     const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: desc, accept: { '*/*': [ext] } }] });
@@ -626,42 +605,6 @@
                 } catch (e) { if (e.name === 'AbortError') return; }
             }
             const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
-        }
-
-        function copyPrompt() {
-            const promptType = document.getElementById('promptSelect').value;
-            let promptText = promptType === 'meeting' ? 
-`アップロードした音声データ（またはタイムスタンプ付きの文字起こしテキスト）から、Wordに貼り付けられる形式でビジネス議事録を作成せよ。
-Markdown記号は使わず自然なテキストで出力すること。以下のフォーマットに厳密に従い、内容から情報を抽出して空欄を埋めよ。
-【会議名】議事録
-1. 基本情報 (日時/場所/参加者/作成者)
-2. 目的・アジェンダ
-3. 決定事項サマリー
-4. 議題ごとの詳細 (結論/経緯・意見)
-5. 保留・未決定事項
-6. Next Action（タスク: 担当/期限/内容）` 
-: 
-`あなたは優秀なビジネスアシスタントです。アップロードされた面談のテキストファイルの内容を読み込み、以下のフォーマットに従って面談報告シートを作成してください。
-指示事項: 内容に忠実に簡潔に要約、推測不可、箇条書き活用
-## 面談報告シート
-**面談日時/参加者/目的**
-### 1. 主要な議題と内容
-### 2. 決定事項
-### 3. 次のアクション（Todo）
-### 4. 懸念事項・課題
-### 5. 特記事項・重要な発言`;
-
-            const textarea = document.createElement('textarea'); textarea.value = promptText;
-            textarea.style.top = "0"; textarea.style.left = "0"; textarea.style.position = "fixed";
-            document.body.appendChild(textarea); textarea.select();
-            try {
-                document.execCommand('copy');
-                alert("AI連携プロンプトをコピーしました！\n「OK」を押すとNotebookLMを開きます。");
-                const newWin = window.open('https://notebooklm.google.com/', '_blank');
-                if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-                    alert("【ポップアップがブロックされました】\nブラウザの設定でポップアップを許可するか、ご自身で「NotebookLM」を検索して開いてください。プロンプトのコピーは完了しています。");
-                }
-            } catch (err) { alert("コピーに失敗しました。"); } finally { document.body.removeChild(textarea); }
         }
     </script>
 </body>
